@@ -1,6 +1,0 @@
-<Solution>
-  <Project Path="ParserCore/ParserCore.csproj" />
-  <Project Path="ParserDesigner/ParserDesigner.csproj" />
-  <Project Path="ParserCore.Tests/ParserCore.Tests.csproj" />
-  <Project Path="ParserDesigner.UiTests/ParserDesigner.UiTests.csproj" />
-</Solution>
