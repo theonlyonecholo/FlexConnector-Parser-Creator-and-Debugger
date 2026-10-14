@@ -1,0 +1,11 @@
+.dotnet-home/
+**/bin/
+**/obj/
+csharp/.vs/
+build/
+*.user
+GitHub-Ready/
+**/.vs/
+*.pdb
+# Local third-party reference; not needed to run or build the C# application.
+/FlexConn_DevGuide.pdf
