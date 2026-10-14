@@ -22,7 +22,7 @@ internal sealed partial class MainForm
         populating = false;
         report.Clear();
         PaintHighlights(null);
-        status.Text = automatic.Checked ? "Čekám na dokončení psaní…" : "Náhled není aktuální. Spusťte Test / Debug.";
+        status.Text = automatic.Checked ? "Waiting for typing to finish…" : "The preview is out of date. Run Test / Debug.";
         if (automatic.Checked)
             debounce.Start();
     }
@@ -31,7 +31,7 @@ internal sealed partial class MainForm
         debounce.Stop();
         revision++;
         pending?.Cancel();
-        status.Text = "Vyhodnocování zastaveno.";
+        status.Text = "Evaluation stopped.";
     }
     /// <summary>Evaluates an input snapshot and publishes it only if its revision is still current.</summary>
     private async Task AnalyzeAsync()
@@ -52,7 +52,7 @@ internal sealed partial class MainForm
             options |= RegexOptions.Multiline;
         if (singleline.Checked)
             options |= RegexOptions.Singleline;
-        status.Text = "Vyhodnocuji regex…";
+        status.Text = "Evaluating regex…";
         try
         {
             await worker.WaitAsync(token);
@@ -73,7 +73,7 @@ internal sealed partial class MainForm
             {
                 doc = new(config);
             }
-            catch (FormatException ex) { configError = "Chyba konfigurace: " + ex.Message; }
+            catch (FormatException ex) { configError = "Configuration error: " + ex.Message; }
             populating = true;
             grid.Rows.Clear();
             foreach (DebugRow row in analysis.Rows)
@@ -81,7 +81,7 @@ internal sealed partial class MainForm
                 string name = row.Name;
                 if (row.Group > 0 && doc is not null && doc.Get($"token[{row.Group - 1}].name") is string tokenName && tokenName.Length > 0)
                     name += " / " + tokenName;
-                int i = grid.Rows.Add(row.Match, row.Group, name, row.Capture, row.Success ? "ano" : "ne", row.Index, row.Length,
+                int i = grid.Rows.Add(row.Match, row.Group, name, row.Capture, row.Success ? "yes" : "no", row.Index, row.Length,
                     row.Value.Length > 500 ? row.Value[..500] + "…" : row.Value);
                 grid.Rows[i].Tag = row;
                 if (row.Group > 0)
@@ -91,34 +91,34 @@ internal sealed partial class MainForm
             populating = false;
             status.Text = analysis.Status + $" {analysis.Milliseconds:F1} ms";
             var detail = new StringBuilder();
-            detail.AppendLine("Engine: .NET. Pozice jsou UTF-16 indexy od nuly. Debug prochází výsledky a opakované záchyty, nikoli interní backtracking.");
-            detail.AppendLine("ArcSight používá Java regex; pojmenované skupiny a další konstrukce mohou mít odlišnou sémantiku / číslování.");
-            detail.AppendLine("Přepínače i/m/s, Celá zpráva a Trim jsou pouze nastavení náhledu, neukládají se do parseru.");
+            detail.AppendLine("Engine: .NET. Positions are zero-based UTF-16 indices. Debug navigates results and repeated captures, not internal backtracking.");
+            detail.AppendLine("ArcSight uses Java regex; named groups and other constructs may have different semantics or numbering.");
+            detail.AppendLine("The i/m/s, Entire message and Trim switches affect the preview only; they are not saved to the parser.");
             if (analysis.Error is not null)
-                detail.AppendLine(analysis.Error + (analysis.ErrorOffset is int offset ? $"\r\nPozice chyby v regexu: {offset}" : ""));
+                detail.AppendLine(analysis.Error + (analysis.ErrorOffset is int offset ? $"\r\nError position in regex: {offset}" : ""));
             if (configError.Length > 0)
                 detail.AppendLine(configError);
             if (doc is not null)
             {
                 if (doc.Get("regex") != expression)
-                    detail.AppendLine("Pole Regex se liší od konfigurace. Uložení nabídne zápis změněného regexu.");
+                    detail.AppendLine("The Regex field differs from the configuration. Saving will offer to write the changed regex.");
                 if (analysis.Matches.Count > 0)
                 {
                     int groupCount = analysis.Rows.Where(r => r.Match == 1 && r.Group > 0).Select(r => r.Group).Distinct().Count();
                     if (!int.TryParse(doc.Get("token.count"), out int count) || count != groupCount)
-                        detail.AppendLine($"Pozor: token.count={doc.Get("token.count")}; zobrazených skupin v první shodě={groupCount}.");
+                        detail.AppendLine($"Warning: token.count={doc.Get("token.count")}; groups shown in the first match={groupCount}.");
                     string severityToken = doc.Get("event.deviceSeverity");
                     if (severityToken.Length > 0)
                     {
                         DebugRow? severity = analysis.Rows.LastOrDefault(r => r.Match == 1 && r.Group > 0 && r.Success && doc.Get($"token[{r.Group - 1}].name") == severityToken);
                         try
                         {
-                            detail.AppendLine(severity is null ? "Severity: výraz nelze vyhodnotit; očekáván přímý odkaz na token." : AdvancedConfiguration.PreviewSeverity(doc, severity.Value));
+                            detail.AppendLine(severity is null ? "Severity: cannot evaluate the expression; a direct token reference is required." : AdvancedConfiguration.PreviewSeverity(doc, severity.Value));
                         }
                         catch (FormatException ex) { detail.AppendLine("Severity: " + ex.Message); }
                     }
                 }
-                detail.AppendLine("Extra processors: " + doc.Get("extraprocessor.count") + " — navázané soubory se lokálně nespouštějí.");
+                detail.AppendLine("Extra processors: " + doc.Get("extraprocessor.count") + " — linked files are not executed locally.");
             }
             report.Text = detail.ToString();
             PaintHighlights(null);

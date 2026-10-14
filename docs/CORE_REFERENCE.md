@@ -71,7 +71,7 @@ It does not rename references in mappings or submessages.
 
 `Types`, `Suggestions`, `Symbols`, `IsDateTime` and `Help` provide the type catalog
 and format-builder content. These are templates based on the guide, not date parsing
-or conversion APIs. UI-facing help strings remain Czech. Date/time symbols use
+or conversion APIs. UI-facing help strings are English. Date/time symbols use
 ArcSight/Java conventions, not .NET format strings.
 
 ## SubmessageConfiguration.cs

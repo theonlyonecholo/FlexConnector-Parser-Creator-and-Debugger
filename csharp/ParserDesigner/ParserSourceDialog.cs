@@ -12,7 +12,7 @@ internal sealed class ParserSourceDialog : Form
     public ParserSourceDialog(string source)
     {
         ResultSource = source;
-        Text = "Upravit parser a znovu otestovat logy";
+        Text = "Edit parser and retest logs";
         Size = new Size(1000, 750);
         MinimumSize = new Size(800, 550);
         StartPosition = FormStartPosition.CenterParent;
@@ -29,7 +29,7 @@ internal sealed class ParserSourceDialog : Form
             Font = new Font("Consolas", 10)
         };
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(8) };
-        var apply = new Button { Text = "Použít a přepočítat logy", AutoSize = true };
+        var apply = new Button { Text = "Apply and retest logs", AutoSize = true };
         apply.Click += (_, _) =>
         {
             try
@@ -38,15 +38,15 @@ internal sealed class ParserSourceDialog : Form
                 ResultSource = editor.Text;
                 DialogResult = DialogResult.OK;
             }
-            catch (FormatException ex) { MessageBox.Show(this, ex.Message, "Konfigurace", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (FormatException ex) { MessageBox.Show(this, ex.Message, "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
-        var cancel = new Button { Text = "Zrušit", DialogResult = DialogResult.Cancel, AutoSize = true };
+        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
         buttons.Controls.AddRange([apply, cancel]);
         CancelButton = cancel;
         Controls.Add(editor);
         Controls.Add(buttons);
         Theme.Apply(this);
-        HelpUi.Describe(editor, "properties", "Celý parser v properties syntaxi. Použití ověří konfiguraci pro lokální test a přetestuje logy; na disk ukládáte v hlavním okně.");
+        HelpUi.Describe(editor, "properties", "The entire parser in properties syntax. Applying validates it for local testing and retests the logs; save to disk in the main window.");
         editor.ResetHistory();
     }
 }

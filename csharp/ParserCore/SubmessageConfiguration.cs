@@ -37,7 +37,7 @@ public sealed class SubmessageConfiguration
             if (!doc.Values.ContainsKey(key))
                 return 0;
             if (!int.TryParse(doc.Get(key), out int n) || n < 0 || n > max)
-                throw new FormatException("Neplatný " + key);
+                throw new FormatException("Invalid " + key);
             return n;
         }
         int count = Count("submessage.count", 1000), total = 0;
@@ -54,7 +54,7 @@ public sealed class SubmessageConfiguration
             int patterns = Count(prefix + "pattern.count", 1000);
             total += patterns;
             if (total > 5000)
-                throw new FormatException("Limit je 5000 patternů celkem.");
+                throw new FormatException("The limit is 5,000 patterns in total.");
             for (int p = 0; p < patterns; p++)
             {
                 string pp = prefix + $"pattern[{p}].";
@@ -69,7 +69,7 @@ public sealed class SubmessageConfiguration
     public string Apply(string source)
     {
         if (Messages.Count > 1000 || Messages.Sum(m => m.Patterns.Count) > 5000)
-            throw new FormatException("Překročen limit počtu submessages/patternů.");
+            throw new FormatException("The submessage/pattern count limit was exceeded.");
         var doc = new PropertiesDocument(source);
         doc.RemoveWhere(k => k.StartsWith("submessage[", StringComparison.Ordinal));
         doc.Set("submessage.count", Messages.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -80,7 +80,7 @@ public sealed class SubmessageConfiguration
         {
             var message = Messages[i];
             if (message.Patterns.Count == 0)
-                throw new FormatException($"submessage[{i}] musí mít alespoň jeden pattern.");
+                throw new FormatException($"submessage[{i}] must have at least one pattern.");
             string prefix = $"submessage[{i}].";
             doc.Set(prefix + "messageid", message.MessageId);
             foreach (var kv in message.Options)

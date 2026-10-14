@@ -103,13 +103,13 @@ internal sealed class EditHistory(TextBoxBase editor)
     public void AddMenu()
     {
         var menu = new ContextMenuStrip();
-        var back = menu.Items.Add("Zpět (Ctrl+Z)", null, (_, _) => Restore(false));
-        var next = menu.Items.Add("Znovu (Ctrl+Y)", null, (_, _) => Restore(true));
+        var back = menu.Items.Add("Undo (Ctrl+Z)", null, (_, _) => Restore(false));
+        var next = menu.Items.Add("Redo (Ctrl+Y)", null, (_, _) => Restore(true));
         menu.Items.Add(new ToolStripSeparator());
-        var cut = menu.Items.Add("Vyjmout", null, (_, _) => editor.Cut());
-        menu.Items.Add("Kopírovat", null, (_, _) => editor.Copy());
-        var paste = menu.Items.Add("Vložit", null, (_, _) => editor.Paste());
-        menu.Items.Add("Vybrat vše", null, (_, _) => editor.SelectAll());
+        var cut = menu.Items.Add("Cut", null, (_, _) => editor.Cut());
+        menu.Items.Add("Copy", null, (_, _) => editor.Copy());
+        var paste = menu.Items.Add("Paste", null, (_, _) => editor.Paste());
+        menu.Items.Add("Select all", null, (_, _) => editor.SelectAll());
         menu.Opening += (_, _) =>
         {
             back.Enabled = !editor.ReadOnly && undo.Count > 0;

@@ -20,12 +20,12 @@ public static class AdvancedConfiguration
         foreach (string item in rule.Split(',').Select(s => s.Trim()))
         {
             if (item.Length == 0)
-                throw new FormatException("Prázdná položka v severity mappingu.");
+                throw new FormatException("Empty entry in severity mapping.");
             if (!item.Contains("..", StringComparison.Ordinal))
                 continue;
             string[] range = item.Split("..", StringSplitOptions.None);
             if (range.Length != 2 || !Number(range[0], out long a) || !Number(range[1], out long b) || a > b)
-                throw new FormatException("Neplatný rozsah severity: " + item);
+                throw new FormatException("Invalid severity range: " + item);
         }
     }
 
@@ -55,9 +55,9 @@ public static class AdvancedConfiguration
         string[] levels = SeverityLevels.Where(l => SeverityMatches(doc.Get(SeverityKey(l)), value)).ToArray();
         return levels.Length switch
         {
-            0 => $"Severity: žádné pravidlo pro '{value}'.",
+            0 => $"Severity: no rule for '{value}'.",
             1 => $"Severity: {levels[0]} (deviceSeverity={value}).",
-            _ => "Severity je nejednoznačná: " + string.Join(", ", levels)
+            _ => "Severity is ambiguous: " + string.Join(", ", levels)
         };
     }
 
@@ -71,22 +71,22 @@ public static class AdvancedConfiguration
                 continue;
             var m = Regex.Match(key, @"\Aextraprocessor\[(0|[1-9][0-9]{0,3})\]\.(.+)\z", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
             if (!m.Success)
-                throw new FormatException("Neplatná vlastnost extra processoru: " + key);
+                throw new FormatException("Invalid extra processor property: " + key);
             indices.Add(int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture));
         }
         int count = indices.Count;
         if (indices.Any(i => i >= count))
-            throw new FormatException("Indexy processorů musí tvořit řadu 0,1,2,… bez mezer.");
+            throw new FormatException("Processor indices must be consecutive: 0,1,2,... without gaps.");
         for (int i = 0; i < count; i++)
         {
             string p = $"extraprocessor[{i}].";
             if (!ProcessorTypes.Contains(doc.Get(p + "type")))
-                throw new FormatException(p + "type chybí nebo není podporován.");
+                throw new FormatException(p + "type is missing or unsupported.");
             if (string.IsNullOrWhiteSpace(doc.Get(p + "filename")))
-                throw new FormatException(p + "filename je povinný.");
+                throw new FormatException(p + "filename is required.");
             foreach (string field in BooleanFields)
                 if (doc.Values.TryGetValue(p + field, out string? v) && !bool.TryParse(v, out _))
-                    throw new FormatException(p + field + " musí být true nebo false.");
+                    throw new FormatException(p + field + " must be true or false.");
         }
         return count;
     }
@@ -110,7 +110,7 @@ public static class AdvancedConfiguration
     public static string ProcessorTemplate(string type, int index)
     {
         if (!ProcessorTypes.Contains(type))
-            throw new ArgumentException("Neznámý typ processoru.");
+            throw new ArgumentException("Unknown processor type.");
         string p = $"extraprocessor[{index}].";
         string result = $"\r\n{p}type={type}\r\n{p}filename=custom/" + (type == "map" ? "mapping.csv" : "parser") + "\r\n";
         if (type != "map")

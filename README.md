@@ -5,8 +5,9 @@ Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The active application uses **C# / WinForms / .NET 10**. Its interface and built-in
-help are Czech; source comments and developer documentation are English.
+help, source comments and documentation are English. Current release: **1.1.0**.
 The publication package contains only the C# solution and its supporting files.
+See [release notes](CHANGELOG.md) for version 1.1.0.
 
 ![Parser Studio](docs/assets/parser-studio.png)
 
@@ -52,15 +53,15 @@ Distribute the **entire output directory**, not just the EXE.
 
 ## Quick start
 
-1. Use **Soubor → Otevřít parser…** to load an example from `examples/`.
+1. Use **File → Open parser…** to load an example from `examples/`.
 2. Paste a log into **Message** and edit the decoded expression in **Regex**.
 3. Press **F5**. Click a capturing group to highlight its captured text.
 4. Open **Parser** to configure tokens, submessages, event mapping and severity.
-5. Use **Testování → Test souboru logů…** to test multiple sample events.
-6. Apply dialog changes, then **Uložit / Ctrl+S** to save the configuration.
+5. Use **Testing → Test log file…** to test multiple sample events.
+6. Apply dialog changes, then **Save / Ctrl+S** to save the configuration.
 
 Press **F1** in an editor for contextual help. See the complete
-[Czech user guide](docs/USER_GUIDE.cs.md) for detailed usage.
+[User guide](docs/USER_GUIDE.md) for detailed usage.
 
 The token editor includes a read-only sample of each token captured from the
 current Message. Hover over a sample for more text and its original position.
@@ -97,7 +98,7 @@ multiline events. Validate the saved parser in the target connector before use.
 - [Core modules and contracts](docs/CORE_REFERENCE.md)
 - [UI modules and editing lifecycle](docs/UI_REFERENCE.md)
 - [Development, testing and extension recipes](docs/DEVELOPMENT.md)
-- [Czech user guide](docs/USER_GUIDE.cs.md)
+- [User guide](docs/USER_GUIDE.md)
 - [Contribution guidelines](CONTRIBUTING.md)
 - [Packaging and GitHub publishing](docs/GITHUB.md)
 

@@ -1,5 +1,7 @@
 # Compiled Windows application
 
+Version **1.1.0** includes an English interface, tooltips and offline help.
+
 Start `ArcSight.ParserDesigner.exe` from this directory. Keep these files together:
 
 - `ArcSight.ParserDesigner.exe` — Windows launcher.

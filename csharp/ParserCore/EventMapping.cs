@@ -57,11 +57,11 @@ public static class EventMapping
     public static string Apply(string source, IReadOnlyList<EventAssignment> assignments)
     {
         if (assignments.Any(a => !IsDirectField(a.Field)))
-            throw new FormatException("Cílové pole musí mít tvar event.nazevPole bez mezer.");
+            throw new FormatException("The target field must use event.fieldName syntax without spaces.");
         if (assignments.Any(a => string.IsNullOrWhiteSpace(a.Expression)))
-            throw new FormatException("Každé mapování musí mít token nebo výraz. Nepotřebný řádek odstraňte.");
+            throw new FormatException("Each mapping requires a token or expression. Remove unused rows.");
         if (assignments.Select(a => a.Field).Distinct(StringComparer.Ordinal).Count() != assignments.Count)
-            throw new FormatException("Cílové pole je uvedeno vícekrát. Pro každé pole ponechte jedno mapování.");
+            throw new FormatException("Duplicate target field. Keep one mapping per field.");
         var doc = new PropertiesDocument(source);
         var retained = assignments.Select(a => a.Field).ToHashSet(StringComparer.Ordinal);
         doc.RemoveWhere(key => IsDirectField(key) && !retained.Contains(key));
@@ -77,19 +77,19 @@ public static class EventMapping
         foreach (var a in assignments)
         {
             if (!Fields.TryGetValue(a.Field, out string? expected))
-                warnings.Add(a.Field + ": vlastní nebo neznámé pole; ověřte jej v cílovém konektoru.");
+                warnings.Add(a.Field + ": custom or unknown field; verify it in the target connector.");
             if (tokens.TryGetValue(a.Expression, out string? actual))
             {
                 if (expected is not null && actual != expected)
-                    warnings.Add($"{a.Field}: token {a.Expression} má typ {actual}, cílové pole očekává {expected}.");
+                    warnings.Add($"{a.Field}: token {a.Expression} has type {actual}; the target field expects {expected}.");
             }
             else if (Regex.IsMatch(a.Expression, @"\A[A-Za-z][A-Za-z0-9_]*\z"))
-                warnings.Add($"{a.Field}: odkaz {a.Expression} není mezi deklarovanými tokeny.");
+                warnings.Add($"{a.Field}: reference {a.Expression} is not among the declared tokens.");
         }
         if (!assignments.Any(a => a.Field == "event.name"))
-            warnings.Add("event.name chybí; příručka jej označuje jako povinné. Může jej doplňovat submessage nebo navazující parser.");
+            warnings.Add("event.name is missing; the guide marks it as required. A submessage or downstream parser may supply it.");
         if (assignments.Any(a => a.Field == "event.requestUrl") && assignments.Any(a => a.Field is "event.requestProtocol" or "event.requestUrlAuthority" or "event.requestUrlHost" or "event.requestUrlPort" or "event.requestUrlFileName" or "event.requestUrlQuery"))
-            warnings.Add("requestUrl je nastaven současně s URI komponentami; příručka upozorňuje na konflikt.");
+            warnings.Add("requestUrl and URI components are both assigned; the guide warns of a conflict.");
         return warnings;
     }
 }

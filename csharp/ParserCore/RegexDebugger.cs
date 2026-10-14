@@ -28,7 +28,7 @@ public static class RegexDebugger
         {
             cancellation.ThrowIfCancellationRequested();
             if (input.Length > MaxInputLength || pattern.Length > MaxPatternLength)
-                throw new ArgumentException($"Limit náhledu: {MaxInputLength:N0} znaků zprávy a {MaxPatternLength:N0} znaků regexu.");
+                throw new ArgumentException($"Preview limit: {MaxInputLength:N0} message characters and {MaxPatternLength:N0} regex characters.");
             timeoutMs = Math.Clamp(timeoutMs, 10, 2000);
             var regex = new Regex(pattern, options | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(timeoutMs));
             // Compile the original first so parse error offsets always refer to the editor text.
@@ -90,24 +90,24 @@ public static class RegexDebugger
                 if (fullEvent || limited)
                     break;
             }
-            string status = spans.Count == 0 ? "Žádná shoda." : $"Shody: {spans.Count}; záchyty: {rows.Count}.";
+            string status = spans.Count == 0 ? "No match." : $"Matches: {spans.Count}; captures: {rows.Count}.";
             if (limited)
-                status += " Náhled zkrácen limitem; nejde o úplný výsledek.";
+                status += " Preview truncated by a limit; this is not a complete result.";
             if (spans.Any(m => m.Length == 0))
-                status += " Nulové shody mají pozici v Debug tabulce, ale nemají text k obarvení.";
+                status += " Zero-length matches have positions in the Debug table but no text to highlight.";
             return new(spans, rows, status, timer.Elapsed.TotalMilliseconds);
         }
         catch (RegexParseException ex)
         {
-            return new([], [], "Chybný regex.", timer.Elapsed.TotalMilliseconds, ex.Message, ex.Offset);
+            return new([], [], "Invalid regex.", timer.Elapsed.TotalMilliseconds, ex.Message, ex.Offset);
         }
         catch (RegexMatchTimeoutException)
         {
-            return new([], [], "Časový limit regexu.", timer.Elapsed.TotalMilliseconds, "Vyhodnocení překročilo limit. Zjednodušte regex nebo zvyšte timeout.");
+            return new([], [], "Regex timeout.", timer.Elapsed.TotalMilliseconds, "Evaluation timed out. Simplify the regex or increase the timeout.");
         }
         catch (ArgumentException ex)
         {
-            return new([], [], "Nelze vyhodnotit regex.", timer.Elapsed.TotalMilliseconds, ex.Message);
+            return new([], [], "Unable to evaluate the regex.", timer.Elapsed.TotalMilliseconds, ex.Message);
         }
     }
 }

@@ -63,7 +63,7 @@ do not prove every text label is readable at all DPI settings.
 4. Add tests for round trips, rejection cases and a realistic example.
 5. Add an editor that works on a draft and returns a result only on acceptance.
 6. Add the command to the relevant toolbar menu and describe controls with `HelpUi`.
-7. Update offline help, module documentation and the Czech usage guide.
+7. Update offline help, module documentation and the English user guide.
 
 ## Adding a preview or diagnostic
 

@@ -15,23 +15,23 @@ public static class TokenFormats
     public static bool IsDateTime(string type) => type is "Date" or "Time" or "TimeStamp";
     public static string Help(string type) => type switch
     {
-        "Date" or "Time" or "TimeStamp" => "Formát data/času ArcSight (Java): MM = měsíc, mm = minuty, SSS = milisekundy. Text uzavřete do apostrofů, apostrof zapište dvakrát. Šablony lze upravit; rok chybějící v syslog formátu doplňte v mapování.",
-        "RegexToken" => "Substituční výraz s/{exp}/{subst}/. Příklad z příručky: s/From: (.*)/$1/ získá jméno z textu From: rajiv. Výraz i náhradu upravte přímo v poli Formát.",
-        "IPAddress" => "Bez formátu. IPv4; IPv6 pouze pro parser s ipv6.aware=true.",
-        "IPv6Address" => "Bez formátu. Příručka uvádí 16 bajtů jako 32 hexadecimálních znaků.",
-        "Double" => "Desetinné číslo; dokumentováno pro ESM domain field sets (str. 204). Příručka neuvádí token.format.",
-        _ => "Příručka pro tento typ neuvádí formát. Pole ponechte prázdné, pokud nemáte vlastní konfiguraci vyžadující formát."
+        "Date" or "Time" or "TimeStamp" => "ArcSight (Java) date/time format: MM = month, mm = minutes, SSS = milliseconds. Enclose literal text in single quotes; double a single quote to escape it. Templates are editable; supply a missing syslog year through mapping.",
+        "RegexToken" => "Substitution expression s/{exp}/{subst}/. Guide example: s/From: (.*)/$1/ extracts the name from From: rajiv. Edit the expression and replacement directly in the Format field.",
+        "IPAddress" => "No format. IPv4; IPv6 only when the parser uses ipv6.aware=true.",
+        "IPv6Address" => "No format. The guide specifies 16 bytes represented as 32 hexadecimal characters.",
+        "Double" => "Decimal number; documented for ESM domain field sets (p. 204). The guide does not specify token.format.",
+        _ => "The guide does not specify a format for this type. Leave it empty unless your custom configuration requires one."
     };
     public static IReadOnlyList<(string Symbol, string Meaning)> Symbols
     {
         get;
     } =
     [
-        ("yyyy", "Rok"), ("MM", "Měsíc číslem"), ("MMM", "Název měsíce"), ("dd", "Den v měsíci"),
-        ("HH", "Hodina 0–23"), ("mm", "Minuta"), ("ss", "Sekunda"), ("SSS", "Milisekundy"),
-        ("Z", "Zóna RFC 822, např. +0200"), ("z", "Název časové zóny"), ("EEE", "Den v týdnu"),
-        ("a", "AM/PM"), ("hh", "Hodina 1–12"), ("kk", "Hodina 1–24"), ("KK", "Hodina 0–11"),
-        ("G", "Éra"), ("w", "Týden v roce"), ("W", "Týden v měsíci"), ("D", "Den v roce"), ("F", "Pořadí dne týdne v měsíci"),
-        ("'text'", "Doslovný text"), ("''", "Apostrof"), ("-", "Pomlčka"), ("/", "Lomítko"), (":", "Dvojtečka"), (".", "Tečka"), (" ", "Mezera")
+        ("yyyy", "Year"), ("MM", "Numeric month"), ("MMM", "Month name"), ("dd", "Day of month"),
+        ("HH", "Hour 0–23"), ("mm", "Minute"), ("ss", "Second"), ("SSS", "Milliseconds"),
+        ("Z", "RFC 822 time zone, e.g. +0200"), ("z", "Time zone name"), ("EEE", "Day of week"),
+        ("a", "AM/PM"), ("hh", "Hour 1–12"), ("kk", "Hour 1–24"), ("KK", "Hour 0–11"),
+        ("G", "Era"), ("w", "Week of year"), ("W", "Week of month"), ("D", "Day of year"), ("F", "Day of week in month"),
+        ("'text'", "Literal text"), ("''", "Single quote"), ("-", "Hyphen"), ("/", "Slash"), (":", "Colon"), (".", "Period"), (" ", "Space")
     ];
 }

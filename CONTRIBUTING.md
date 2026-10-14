@@ -6,8 +6,7 @@ Start with [the architecture](docs/ARCHITECTURE.md) and
 
 ## Code conventions
 
-- Use English identifiers, comments and developer documentation. Keep current Czech
-  interface text unless a change explicitly introduces localization.
+- Use English identifiers, comments, documentation, interface text and help.
 - Follow `.editorconfig`; run the formatting check before submitting a change.
 - Keep configuration logic in `ParserCore` and control/window lifecycle in the UI.
 - Describe non-obvious invariants, ownership and compatibility limits rather than

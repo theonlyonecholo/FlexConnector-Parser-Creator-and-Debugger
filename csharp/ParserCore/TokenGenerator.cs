@@ -11,13 +11,13 @@ public static class TokenGenerator
     public static IReadOnlyList<TokenDefinition> Draft(string source, string pattern)
     {
         if (pattern.Length > RegexDebugger.MaxPatternLength)
-            throw new FormatException("Regex je příliš dlouhý.");
+            throw new FormatException("The regex is too long.");
         var regex = new Regex(pattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
         int[] groups = regex.GetGroupNumbers().Where(n => n > 0).ToArray();
         if (!groups.SequenceEqual(Enumerable.Range(1, groups.Length)))
-            throw new FormatException("Explicitně číslované skupiny musí tvořit řadu 1,2,… bez mezer.");
+            throw new FormatException("Explicitly numbered groups must be consecutive: 1,2,... without gaps.");
         if (groups.Length > 5000)
-            throw new FormatException("Limit generátoru je 5000 tokenů.");
+            throw new FormatException("The generator limit is 5,000 tokens.");
         var doc = new PropertiesDocument(source);
         var used = new HashSet<string>(StringComparer.Ordinal);
         // Reserve existing names first, so newly generated names cannot collide with them.
@@ -51,13 +51,13 @@ public static class TokenGenerator
     public static string Apply(string source, string pattern, IReadOnlyList<TokenDefinition> tokens)
     {
         if (Draft(source, pattern).Count != tokens.Count)
-            throw new FormatException("Počet tokenů neodpovídá regexu.");
+            throw new FormatException("The token count does not match the regex.");
         if (!tokens.Select(t => t.Index).SequenceEqual(Enumerable.Range(0, tokens.Count)))
-            throw new FormatException("Indexy tokenů musí začínat nulou a být souvislé.");
+            throw new FormatException("Token indices must start at zero and be consecutive.");
         if (tokens.Any(t => string.IsNullOrWhiteSpace(t.Name) || string.IsNullOrWhiteSpace(t.Type)))
-            throw new FormatException("Název a typ každého tokenu jsou povinné.");
+            throw new FormatException("Every token requires a name and type.");
         if (tokens.Select(t => t.Name).Distinct(StringComparer.Ordinal).Count() != tokens.Count)
-            throw new FormatException("Názvy tokenů musí být jedinečné.");
+            throw new FormatException("Token names must be unique.");
         var doc = new PropertiesDocument(source);
         // Remove declarations beyond the new capture count; keep custom metadata on retained indices.
         doc.RemoveWhere(key =>

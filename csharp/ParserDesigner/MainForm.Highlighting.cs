@@ -22,7 +22,7 @@ internal sealed partial class MainForm
         DebugRow? row = grid.SelectedRows.Count == 0 ? null : grid.SelectedRows[0].Tag as DebugRow;
         PaintHighlights(row);
         if (row is not null)
-            status.Text = $"Shoda {row.Match}, skupina {row.Group} ({row.Name}), záchyt {row.Capture}, pozice {row.Index}, délka {row.Length}.";
+            status.Text = $"Match {row.Match}, group {row.Group} ({row.Name}), capture {row.Capture}, position {row.Index}, length {row.Length}.";
     }
     private void HighlightRegexGroup()
     {
@@ -36,7 +36,7 @@ internal sealed partial class MainForm
         PaintHighlights(null);
         if (group is null)
         {
-            status.Text = result.Error is not null ? result.Status : "Kurzor není v podporované zachytávací skupině. Klikněte mezi její závorky.";
+            status.Text = result.Error is not null ? result.Status : "The cursor is not inside a supported capturing group. Click between its parentheses.";
             return;
         }
         string tokenName = "";
@@ -46,10 +46,10 @@ internal sealed partial class MainForm
         }
         catch (FormatException) { }
         var captures = result.Rows.Where(r => r.Group == group.Number && r.Success).ToArray();
-        string label = $"Skupina {group.Number} ({group.Name})" + (tokenName.Length > 0 ? $" / token {tokenName}" : "");
-        status.Text = captures.Length == 0 ? label + " — bez záchytu v aktuální zprávě." :
-            label + $" — {captures.Length} záchytů zvýrazněno modře" +
-            (captures.Any(r => r.Length == 0) ? "; prázdné záchyty na pozicích " + string.Join(", ", captures.Where(r => r.Length == 0).Take(10).Select(r => r.Index)) : "") + ".";
+        string label = $"Group {group.Number} ({group.Name})" + (tokenName.Length > 0 ? $" / token {tokenName}" : "");
+        status.Text = captures.Length == 0 ? label + " — no capture in the current message." :
+            label + $" — {captures.Length} captures highlighted in blue" +
+            (captures.Any(r => r.Length == 0) ? "; empty captures at positions " + string.Join(", ", captures.Where(r => r.Length == 0).Take(10).Select(r => r.Index)) : "") + ".";
     }
     private void PaintHighlights(DebugRow? active)
     {

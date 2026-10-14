@@ -66,7 +66,7 @@ internal static class Program
                 if (helpTopics.Items.Count != 1 || !helpBody.Text.Contains("clearfieldafterparsing", StringComparison.Ordinal))
                     throw new Exception("Help must search topic content");
                 helpSearch.Text = "no-such-help-topic-123";
-                if (helpTopics.Items.Count != 0 || !helpBody.Text.StartsWith("Žádné téma", StringComparison.Ordinal))
+                if (helpTopics.Items.Count != 0 || !helpBody.Text.StartsWith("No topics", StringComparison.Ordinal))
                     throw new Exception("Empty help search should explain result");
                 helpSearch.Clear();
                 if (helpTopics.Items.Count != 11)
@@ -133,7 +133,7 @@ internal static class Program
             main.Opacity = 0;
             main.Show();
             PumpUntil(() => Field<object?>(main, "result") is not null);
-            if (!Field<TextBox>(main, "pattern").AccessibleDescription!.Contains("Dekódovaný", StringComparison.Ordinal))
+            if (!Field<TextBox>(main, "pattern").AccessibleDescription!.Contains("Decoded", StringComparison.Ordinal))
                 throw new Exception("Regex field description missing");
             if (main.Controls.OfType<StatusStrip>().Count() != 1)
                 throw new Exception("Help entry missing or duplicated");
@@ -225,11 +225,11 @@ internal static class Program
             }
             regexEditor.SelectionStart = regexEditor.Text.IndexOf("Empty", StringComparison.Ordinal);
             Invoke(main, "HighlightRegexGroup");
-            if (!Field<Label>(main, "status").Text.Contains("prázdné záchyty", StringComparison.Ordinal))
+            if (!Field<Label>(main, "status").Text.Contains("empty captures", StringComparison.Ordinal))
                 throw new Exception("Empty captures must be explained");
             regexEditor.SelectionStart = regexEditor.Text.IndexOf("(x)", StringComparison.Ordinal) + 1;
             Invoke(main, "HighlightRegexGroup");
-            if (!Field<Label>(main, "status").Text.Contains("bez záchytu", StringComparison.Ordinal))
+            if (!Field<Label>(main, "status").Text.Contains("no capture", StringComparison.Ordinal))
                 throw new Exception("Unmatched group must be explained");
             var configEditor = Field<TextBox>(main, "source");
             string beforeGenerated = configEditor.Text;
@@ -256,7 +256,7 @@ internal static class Program
             subTree.SelectedNode = subTree.Nodes[0].Nodes[2];
             if (subEdits["regex"].Text != "(unrecognized login payload)")
                 throw new Exception("Switching patterns lost edits");
-            Descendants(subDialog).OfType<Button>().Single(b => b.Text == "Testovat log s těmito změnami").PerformClick();
+            Descendants(subDialog).OfType<Button>().Single(b => b.Text == "Test log with these changes").PerformClick();
             PumpUntil(() => Field<TextBox>(subDialog, "result").Text.Contains("submessage[0].pattern[2]", StringComparison.Ordinal));
             subEdits["regex"].SelectionStart = 2;
             var highlightSub = (Task)subDialog.GetType().GetMethod("HighlightGroupAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(subDialog, null)!;
@@ -267,7 +267,7 @@ internal static class Program
             if (subSample.SelectionBackColor != Color.LightSkyBlue)
                 throw new Exception("Submessage group must highlight original log offset");
             Capture(subDialog, Path.Combine(output, "ui-submessages.png"));
-            Descendants(subDialog).OfType<Button>().Single(b => b.Text == "Použít v konfiguraci").PerformClick();
+            Descendants(subDialog).OfType<Button>().Single(b => b.Text == "Apply to configuration").PerformClick();
             string editedSource = (string)subDialog.GetType().GetProperty("ResultSource")!.GetValue(subDialog)!;
             subDialog.Close();
             using var batch = (Form)Activator.CreateInstance(assembly.GetType("ParserDesigner.BatchForm")!, source, "submessages.sdkrfilereader.properties")!;
@@ -365,9 +365,9 @@ internal static class Program
             tokenDialog.Close();
             foreach (var sampleCase in new[]
             {
-                (Pattern: "(a)?()", Input: "", First: "— bez záchytu", Second: "(prázdný záchyt)"),
-                (Pattern: @"(\d)+(x)?", Input: "123", First: "3", Second: "— bez záchytu"),
-                (Pattern: "(a)(b)", Input: "xyz", First: "— bez záchytu", Second: "— bez záchytu")
+                (Pattern: "(a)?()", Input: "", First: "— no capture", Second: "(empty capture)"),
+                (Pattern: @"(\d)+(x)?", Input: "123", First: "3", Second: "— no capture"),
+                (Pattern: "(a)(b)", Input: "xyz", First: "— no capture", Second: "— no capture")
             })
             {
                 using var snippetDialog = (Form)Activator.CreateInstance(assembly.GetType("ParserDesigner.TokenDialog")!, "", sampleCase.Pattern, sampleCase.Input)!;
@@ -375,7 +375,7 @@ internal static class Program
                 snippetDialog.Opacity = 0;
                 snippetDialog.Show();
                 var snippetTable = snippetDialog.Controls.OfType<DataGridView>().Single();
-                PumpUntil(() => Convert.ToString(snippetTable.Rows[0].Cells[4].Value) != "Načítám…");
+                PumpUntil(() => Convert.ToString(snippetTable.Rows[0].Cells[4].Value) != "Loading…");
                 if (Convert.ToString(snippetTable.Rows[0].Cells[4].Value) != sampleCase.First || Convert.ToString(snippetTable.Rows[1].Cells[4].Value) != sampleCase.Second)
                     throw new Exception("Snippet must distinguish missing, empty and repeated captures");
                 snippetDialog.Close();
@@ -387,7 +387,7 @@ internal static class Program
             Application.DoEvents();
             var formatEdit = Field<TextBox>(formatDialog, "format");
             formatEdit.Select(formatEdit.TextLength, 0);
-            Descendants(formatDialog).OfType<Button>().Single(b => b.Text == "HH — Hodina 0–23").PerformClick();
+            Descendants(formatDialog).OfType<Button>().Single(b => b.Text == "HH — Hour 0–23").PerformClick();
             if (formatEdit.Text != "yyyy-MM-ddHH")
                 throw new Exception("Format builder must insert at caret");
             Shortcut(formatEdit, Keys.Control | Keys.Z);
@@ -398,7 +398,7 @@ internal static class Program
             if (formatEdit.Text != "yyyy-MM-dd'T'HH:mm:ssZ")
                 throw new Exception("Format preset not selected");
             Capture(formatDialog, Path.Combine(output, "ui-token-format.png"));
-            Descendants(formatDialog).OfType<Button>().Single(b => b.Text == "Použít formát").PerformClick();
+            Descendants(formatDialog).OfType<Button>().Single(b => b.Text == "Apply format").PerformClick();
             if ((string)formatDialog.GetType().GetProperty("ResultFormat")!.GetValue(formatDialog)! != "yyyy-MM-dd'T'HH:mm:ssZ")
                 throw new Exception("Format builder result incorrect");
             formatDialog.Close();
@@ -418,10 +418,10 @@ internal static class Program
             mappingTarget.Text = "event.name";
             mappingMode.SelectedIndex = 1;
             mappingValue.Text = "Přihlášení";
-            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Přidat / aktualizovat").PerformClick();
+            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Add / update").PerformClick();
             mappingTarget.Text = "event.deviceVendor";
             mappingValue.Text = "New";
-            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Přidat / aktualizovat").PerformClick();
+            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Add / update").PerformClick();
             if (mappingTable.Rows.Count != 3)
                 throw new Exception("Updating existing field created duplicate");
             mappingTable.Rows[0].Cells[1].Value = "__customOperation(Msg)";
@@ -432,7 +432,7 @@ internal static class Program
                 if (flow.Controls.Cast<Control>().Any(c => c.Bottom > flow.ClientSize.Height || c.Right > flow.ClientSize.Width))
                     throw new Exception("Mapping actions clipped at minimum size");
             Capture(mapping, Path.Combine(output, "ui-event-mapping-compact.png"));
-            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Použít v konfiguraci").PerformClick();
+            Descendants(mapping).OfType<Button>().Single(b => b.Text == "Apply to configuration").PerformClick();
             var mappedDoc = new PropertiesDocument((string)mapping.GetType().GetProperty("ResultSource")!.GetValue(mapping)!);
             if (mappedDoc.Get("event.name") != "__stringConstant(\"Přihlášení\")" || mappedDoc.Get("event.deviceVendor") != "__stringConstant(\"New\")" || mappedDoc.Get("event.message") != "__customOperation(Msg)" || mappedDoc.Get("custom.keep") != "true")
                 throw new Exception("Mapping editor export failed");

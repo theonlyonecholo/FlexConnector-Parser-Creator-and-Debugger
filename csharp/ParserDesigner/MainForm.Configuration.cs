@@ -21,12 +21,12 @@ internal sealed partial class MainForm
             MessageBox.Show(this, ex.Message, "Parser Designer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
-    private void UpdateTitle() => Text = $"ArcSight Parser Designer — C# — {path ?? "nový parser"}{(dirty || regexDirty ? " *" : "")}";
+    private void UpdateTitle() => Text = $"ArcSight Parser Designer — C# — {path ?? "New parser"}{(dirty || regexDirty ? " *" : "")}";
     private bool CanLeave()
     {
         if (!dirty && !regexDirty)
             return true;
-        var choice = MessageBox.Show(this, "Máte neuložené změny. Uložit je před pokračováním?", "Neuložené změny",
+        var choice = MessageBox.Show(this, "You have unsaved changes. Save them before continuing?", "Unsaved changes",
             MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
         if (choice == DialogResult.No)
             return true;
@@ -40,12 +40,12 @@ internal sealed partial class MainForm
     {
         if (!CanLeave())
             return;
-        using var dialog = new OpenFileDialog { Filter = "FlexConnector (*.properties)|*.properties|Všechny soubory|*.*" };
+        using var dialog = new OpenFileDialog { Filter = "FlexConnector (*.properties)|*.properties|All files|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
         var doc = PropertiesDocument.Load(dialog.FileName);
         if (!doc.Values.ContainsKey("regex"))
-            throw new FormatException("Soubor neobsahuje hlavní vlastnost regex.");
+            throw new FormatException("The file does not contain the main regex property.");
         loading = true;
         source.Text = doc.Source;
         pattern.Text = doc.Get("regex");
@@ -62,15 +62,15 @@ internal sealed partial class MainForm
     {
         if (regexDirty)
         {
-            var choice = MessageBox.Show(this, "Zapsat aktuální pole Regex do konfigurace před uložením?",
-                "Uložit regex", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            var choice = MessageBox.Show(this, "Write the current Regex field into the configuration before saving?",
+                "Save regex", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (choice != DialogResult.OK)
                 return false;
             WritePattern();
         }
         var doc = new PropertiesDocument(source.Text);
         if (!doc.Values.ContainsKey("regex"))
-            throw new FormatException("Chybí vlastnost regex.");
+            throw new FormatException("The regex property is missing.");
         string? target = path;
         if (saveAs || target is null)
         {
@@ -89,8 +89,8 @@ internal sealed partial class MainForm
     {
         var doc = new PropertiesDocument(source.Text);
         if (!doc.Values.ContainsKey("regex"))
-            throw new FormatException("Chybí vlastnost regex.");
-        if (regexDirty && MessageBox.Show(this, "Nahradit neuložený výraz hodnotou z konfigurace?", "Regex",
+            throw new FormatException("The regex property is missing.");
+        if (regexDirty && MessageBox.Show(this, "Replace the unsaved expression with the value from the configuration?", "Regex",
             MessageBoxButtons.OKCancel) != DialogResult.OK)
             return;
         loading = true;
@@ -125,14 +125,14 @@ internal sealed partial class MainForm
     {
         if (regexDirty)
         {
-            if (MessageBox.Show(this, "Zapsat změněný Regex do konfigurace před testem logů?", "Test parseru", MessageBoxButtons.OKCancel) != DialogResult.OK)
+            if (MessageBox.Show(this, "Write the changed Regex into the configuration before testing logs?", "Parser test", MessageBoxButtons.OKCancel) != DialogResult.OK)
                 return;
             WritePattern();
         }
         var doc = new PropertiesDocument(source.Text);
         if (doc.Values.ContainsKey("multiline.starts.regex"))
-            MessageBox.Show(this, "Tento parser má multiline konfiguraci. Test souboru nyní vyhodnocuje jednotlivé řádky; vícerádkové události nejprve spojte.", "Režim po řádcích");
-        using var batch = new BatchForm(source.Text, path is null ? "Nový parser" : Path.GetFileName(path));
+            MessageBox.Show(this, "This parser has multiline configuration. File testing currently evaluates individual lines; combine multiline events first.", "Line-by-line mode");
+        using var batch = new BatchForm(source.Text, path is null ? "New parser" : Path.GetFileName(path));
         batch.ShowDialog(this);
         if (batch.ConfigurationSource != source.Text)
             ApplyEditedSource(batch.ConfigurationSource);
@@ -154,7 +154,7 @@ internal sealed partial class MainForm
     {
         if (regexDirty)
         {
-            if (MessageBox.Show(this, "Zapsat změněný Regex do konfigurace před úpravou submessages?", "Submessages", MessageBoxButtons.OKCancel) != DialogResult.OK)
+            if (MessageBox.Show(this, "Write the changed Regex into the configuration before editing submessages?", "Submessages", MessageBoxButtons.OKCancel) != DialogResult.OK)
                 return;
             WritePattern();
         }
@@ -180,7 +180,7 @@ internal sealed partial class MainForm
     }
     private void LoadMessage()
     {
-        using var dialog = new OpenFileDialog { Filter = "Log / text|*.log;*.txt|Všechny soubory|*.*" };
+        using var dialog = new OpenFileDialog { Filter = "Log / text|*.log;*.txt|All files|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
         message.Text = File.ReadAllText(dialog.FileName);

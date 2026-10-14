@@ -1,6 +1,6 @@
 # Desktop module reference
 
-All paths refer to `csharp/ParserDesigner`. UI text remains Czech. Implementation
+All paths refer to `csharp/ParserDesigner`. UI text is English. Implementation
 comments and identifiers are English. Forms are internal implementation details;
 the tests intentionally inspect selected controls through reflection.
 
@@ -89,7 +89,7 @@ differences. Read-only controls must not apply undo commands.
 
 ### HelpTopics.cs
 
-Stores the bundled Czech topic catalog as `HelpTopic` records. It documents product
+Stores the bundled English topic catalog as `HelpTopic` records. It documents product
 behavior and ArcSight concepts with source page references. Keep limitations in
 sync with the implementation; do not describe an unsupported conversion as executed.
 

@@ -3,12 +3,12 @@ namespace ParserDesigner;
 /// <summary>Displays and searches bundled offline help topics without requiring the reference PDF at runtime.</summary>
 internal sealed class HelpWindow : Form
 {
-    private readonly TextBox search = new() { Dock = DockStyle.Top, PlaceholderText = "Hledat v názvech i obsahu nápovědy…" };
+    private readonly TextBox search = new() { Dock = DockStyle.Top, PlaceholderText = "Search help titles and content…" };
     private readonly ListBox topics = new() { Dock = DockStyle.Fill, DisplayMember = "Title", IntegralHeight = false, HorizontalScrollbar = true };
     private readonly RichTextBox content = new() { Dock = DockStyle.Fill, ReadOnly = true, DetectUrls = false, Font = new Font("Segoe UI", 11) };
     public HelpWindow(string initial = "start")
     {
-        Text = "Nápověda — ArcSight Parser Designer";
+        Text = "Help — ArcSight Parser Designer";
         Size = new Size(1120, 800);
         MinimumSize = new Size(850, 600);
         StartPosition = FormStartPosition.CenterParent;
@@ -16,7 +16,7 @@ internal sealed class HelpWindow : Form
         split.Panel1.Controls.Add(topics);
         split.Panel1.Controls.Add(search);
         split.Panel2.Controls.Add(content);
-        split.Panel1.Controls.Add(new Label { Text = "Hledat v názvech a obsahu:", Dock = DockStyle.Top, Height = 28, Padding = new Padding(4) });
+        split.Panel1.Controls.Add(new Label { Text = "Search titles and content:", Dock = DockStyle.Top, Height = 28, Padding = new Padding(4) });
         Controls.Add(split);
         topics.SelectedIndexChanged += (_, _) =>
         {
@@ -52,6 +52,6 @@ internal sealed class HelpWindow : Form
         else if (topics.Items.Count > 0)
             topics.SelectedIndex = 0;
         else
-            content.Text = "Žádné téma neodpovídá hledání. Zkuste kratší výraz, například token, mappings nebo timeout.";
+            content.Text = "No topics match your search. Try a shorter term, such as token, mappings or timeout.";
     }
 }

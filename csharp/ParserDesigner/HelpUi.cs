@@ -27,7 +27,7 @@ internal static class HelpUi
         var form = control.FindForm();
         if (form is null || !States.TryGetValue(form, out var state))
             return;
-        state.Tips.SetToolTip(control, text + "\nF1: podrobná nápověda.");
+        state.Tips.SetToolTip(control, text + "\nF1: detailed help.");
         control.AccessibleDescription = text;
         state.Topics[control] = topic;
     }
@@ -46,9 +46,9 @@ internal static class HelpUi
                 if (c is Button && tip is not null)
                     Describe(c, TopicForButton(c.Text, topic), tip);
                 else if (c is Button && c.Text.Contains(" — ", StringComparison.Ordinal))
-                    Describe(c, "formats", "Vloží tento symbol formátu na pozici kurzoru; označený text nahradí.");
+                    Describe(c, "formats", "Insert this format symbol at the cursor, replacing selected text.");
                 else if (c is TextBoxBase or ComboBox or TreeView or DataGridView or CheckBox or NumericUpDown)
-                    Describe(c, topic, "Význam a postup použití najdete přes F1 v tématu „" + HelpTopics.All.Single(t => t.Id == topic).Title + "“.");
+                    Describe(c, topic, "Press F1 for an explanation and usage instructions in the topic “" + HelpTopics.All.Single(t => t.Id == topic).Title + "“.");
                 if (c is DataGridView grid)
                     foreach (DataGridViewColumn column in grid.Columns)
                         column.ToolTipText = ColumnTip(column.HeaderText);
@@ -57,10 +57,10 @@ internal static class HelpUi
         }
         Walk(form);
         var footer = new StatusStrip { SizingGrip = false };
-        var help = new ToolStripButton("Nápověda (F1)") { ToolTipText = "Otevře českou nápovědu s vyhledáváním a příklady parseru." };
+        var help = new ToolStripButton("Help (F1)") { ToolTipText = "Open searchable English help with parser examples." };
         help.Click += (_, _) => Show(form, topic);
         footer.Items.Add(help);
-        footer.Items.Add(new ToolStripStatusLabel("Popisy polí: najeďte myší • F1 vysvětlí aktivní pole"));
+        footer.Items.Add(new ToolStripStatusLabel("Hover for field descriptions • F1 explains the active field"));
         form.Controls.Add(footer);
         form.KeyPreview = true;
         form.KeyDown += (_, e) =>
@@ -84,74 +84,74 @@ internal static class HelpUi
     }
     private static string TopicForButton(string text, string fallback) => text switch
     {
-        "Tokeny z regexu…" => "tokens",
-        "Submessages…" or "Upravit submessage…" => "submessages",
+        "Tokens from regex…" => "tokens",
+        "Submessages…" or "Edit submessage…" => "submessages",
         "Event mapping…" => "mapping",
         "Severity / processors…" => "severity",
-        "Test souboru logů…" => "batch",
-        "Návrh formátu…" => "formats",
-        "Přidat šablonu" => "processors",
-        "Test / Debug (F5)" or "◀ Předchozí záchyt" or "Další záchyt ▶" or "Načíst zprávu…" => "regex",
-        "Konfigurace → Regex" or "Regex → Konfigurace" or "Uložit" or "Uložit jako…" or "Otevřít .properties" or "Upravit parser…" => "properties",
+        "Test log file…" => "batch",
+        "Format builder…" => "formats",
+        "Add template" => "processors",
+        "Test / Debug (F5)" or "◀ Previous capture" or "Next capture ▶" or "Load message…" => "regex",
+        "Configuration → Regex" or "Regex → Configuration" or "Save" or "Save as…" or "Open .properties" or "Edit parser…" => "properties",
         _ => fallback
     };
     private static string? ButtonTip(string text) => text switch
     {
-        "Event mapping…" => "Otevře editor přiřazení tokenů, konstant a výrazů do cílových event polí.",
-        "Přidat / aktualizovat" => "Zapíše návrh do tabulky mapování; stejné cílové pole aktualizuje.",
-        "Odstranit mapování" => "Odstraní vybraný řádek. Změna se zapíše do konfigurace až po použití dialogu.",
-        "Otevřít .properties" => "Načte konfiguraci parseru a hlavní regex ze souboru. Před opuštěním změn nabídne uložení.",
-        "Uložit" => "Zapíše konfiguraci na disk. Změněný pracovní regex nabídne nejprve zapsat do konfigurace.",
-        "Uložit jako…" => "Uloží konfiguraci do zvoleného souboru.",
-        "Konfigurace → Regex" => "Načte a dekóduje vlastnost regex z konfigurace do pracovního pole Regex.",
-        "Regex → Konfigurace" => "Escapuje pracovní regex a zapíše jej do properties. Tokeny se tím nepřegenerují.",
-        "Severity / processors…" => "Nastavení převodu závažnosti a odkazů na navazující parsery.",
-        "Tokeny z regexu…" => "Vytvoří tokeny ze zachytávacích skupin; umožní zvolit názvy, typy a formáty.",
-        "Submessages…" => "Definice variant těla logu podle message ID a pořadí patternů.",
-        "Test souboru logů…" => "Vyhodnotí jeden parser nad řádky souboru; umožní procházení a ladění variant.",
-        "Test / Debug (F5)" => "Vyhodnotí pracovní regex a zobrazí shody a opakované záchyty. Nejde o krokování interního backtrackingu.",
-        "Zastavit" => "Požádá o zrušení testu. Běžící regex je omezen timeoutem.",
-        "◀ Předchozí záchyt" or "Další záchyt ▶" => "Vybere sousední záchyt v Debug tabulce a zvýrazní jej v Message.",
-        "Načíst zprávu…" => "Načte obsah textového souboru do Message pro test jednoho vstupu.",
-        "Otevřít logy…" => "Načte soubor ve zvoleném kódování; každý řádek je samostatný log.",
-        "Otestovat vše" => "Znovu vyhodnotí všechny načtené logy aktuálním parserem.",
-        "← Log" or "Log →" => "Přejde na sousední log v aktuálně filtrovaném seznamu.",
-        "Upravit submessage…" => "Otevře definici použitou nebo zkoušenou pro vybraný log. Po použití přetestuje soubor.",
-        "Upravit parser…" => "Upraví celý text konfigurace; po použití se logy přepočítají.",
-        "Použít v konfiguraci" => "Přenese návrh do hlavní konfigurace. Na disk jej následně zapíšete tlačítkem Uložit.",
-        "Použít a přepočítat logy" => "Převezme návrh konfigurace do testovacího okna a znovu vyhodnotí soubor.",
-        "Návrh formátu…" => "Pro vybraný token otevře šablony a skládání formátu podle jeho typu.",
-        "Použít formát" => "Vrátí navržený formát do vybraného řádku tokenu.",
-        "Bez formátu" => "Vyprázdní formát; při exportu tokenu se vlastnost format odstraní.",
-        "Zrušit" => "Zavře tento dialog bez použití jeho návrhu.",
-        "+ Submessage" => "Přidá definici pro další message ID s počátečním patternem.",
-        "+ Pattern" => "Přidá alternativní regex do vybrané submessage.",
-        "Odstranit" => "Odstraní vybraný pattern nebo celou submessage podle uzlu stromu.",
-        "↑ Dříve" or "↓ Později" => "Posune definici nebo pattern v pořadí. První úspěšný pattern vyhrává.",
-        "Testovat log s těmito změnami" => "Otestuje celý vybraný log aktuálním návrhem parseru včetně routingu submessages.",
-        "Přidat šablonu" => "Připojí blok extra processoru zvoleného typu. Doplňte skutečnou cestu a parametry.",
+        "Event mapping…" => "Open the editor for assigning tokens, constants and expressions to target event fields.",
+        "Add / update" => "Insert the draft into the mapping table, updating an existing entry for the same target field.",
+        "Remove mapping" => "Remove the selected row. The configuration changes only when you apply the dialog.",
+        "Open .properties" => "Load the parser configuration and main regex from a file. Offers to save unsaved changes first.",
+        "Save" => "Write the configuration to disk. If the working regex has changed, offers to write it into the configuration first.",
+        "Save as…" => "Save the configuration to the selected file.",
+        "Configuration → Regex" => "Load and decode the regex property from the configuration into the working Regex field.",
+        "Regex → Configuration" => "Escape the working regex and write it to properties. This does not regenerate tokens.",
+        "Severity / processors…" => "Configure severity normalization and references to downstream parsers.",
+        "Tokens from regex…" => "Create tokens from capturing groups; choose names, types and formats.",
+        "Submessages…" => "Define log body variants by message ID and pattern order.",
+        "Test log file…" => "Evaluate one parser against file lines; browse and debug variants.",
+        "Test / Debug (F5)" => "Evaluate the working regex and show matches and repeated captures. This does not step through internal backtracking.",
+        "Stop" => "Request test cancellation. A running regex is bounded by its timeout.",
+        "◀ Previous capture" or "Next capture ▶" => "Select the adjacent capture in the Debug table and highlight it in Message.",
+        "Load message…" => "Load a text file into Message to test a single input.",
+        "Open logs…" => "Load a file using the selected encoding; each line is a separate log.",
+        "Test all" => "Evaluate all loaded logs again using the current parser.",
+        "← Log" or "Log →" => "Go to the adjacent log in the currently filtered list.",
+        "Edit submessage…" => "Open the definition used or attempted for the selected log. Applying changes retests the file.",
+        "Edit parser…" => "Edit the entire configuration; applying changes retests the logs.",
+        "Apply to configuration" => "Transfer the draft into the main configuration. Then use Save to write it to disk.",
+        "Apply and retest logs" => "Apply the configuration draft to the test window and evaluate the file again.",
+        "Format builder…" => "Open templates and the format builder for the selected token type.",
+        "Apply format" => "Return the proposed format to the selected token row.",
+        "Clear format" => "Clear the format; the format property is removed when the token is exported.",
+        "Cancel" => "Close this dialog without applying its draft.",
+        "+ Submessage" => "Add a definition for another message ID with an initial pattern.",
+        "+ Pattern" => "Add an alternative regex to the selected submessage.",
+        "Remove" => "Remove the selected pattern or the entire submessage, depending on the tree node.",
+        "↑ Earlier" or "↓ Later" => "Move the definition or pattern in the order. The first successful pattern wins.",
+        "Test log with these changes" => "Test the entire selected log against the current parser draft, including submessage routing.",
+        "Add template" => "Append an extra processor block of the selected type. Supply the actual path and parameters.",
         _ => null
     };
     private static string ColumnTip(string title) => title switch
     {
-        "Typ" => "Datový typ tokenu; má odpovídat cílovému event poli. F1: seznam typů.",
-        "Formát" => "Dekódovaný formát pro převod tokenu; například yyyy-MM-dd HH:mm:ss. Pomocník: Návrh formátu.",
-        "Název" or "Název / token" => "Jméno používané jako odkaz v mapování. Barva odpovídá tokenu v textu.",
-        "Skupina → token" => "Skupina 1 odpovídá token[0]; nezachytávací skupiny token nemají.",
-        "Pozice" or "Pozice (0-based)" => "Pozice v původním textu: UTF-16 index od nuly; -1 znamená bez záchytu.",
-        "Délka" => "Délka záchytu v jednotkách UTF-16. Nula je prázdný záchyt.",
-        "Submessage / pattern" => "Použitá nebo dostupná definice. Detail ukáže jednotlivé pokusy.",
-        "Message ID" => "Hodnota tokenu, podle níž se vybírá submessage.",
-        "Výsledek" => "Rozlišuje shodu, neshodu hlavního regexu, chybějící submessage, neshodu těla a chybu.",
-        "Řádek" => "Původní číslo řádku v souboru logů.",
-        "Skupina" => "Číslo zachytávací skupiny. Skupina 0 je celá shoda.",
-        "Záchyt" => "Pořadí opakovaného zachycení stejné skupiny.",
-        "Shoda" => "Pořadí shody nalezené v Message.",
-        "Úspěch" => "Zda tato skupina v dané shodě zachytila hodnotu.",
-        "Hodnota" => "Zachycený text. Dlouhé hodnoty mohou být v tabulce zkrácené.",
-        "Fáze" => "Zda záchyt pochází z hlavního regexu, tokenu nebo submessage.",
-        "Token / pole" => "Jméno tokenu nebo cílového pole submessage; barva odpovídá záchytu.",
-        _ => "Podrobnosti a příklady: F1."
+        "Type" => "Token data type; it should match the target event field. F1: type reference.",
+        "Format" => "Decoded token conversion format, such as yyyy-MM-dd HH:mm:ss. Use Format builder for help.",
+        "Name" or "Name / token" => "The name used as a mapping reference. Its color matches the token in the text.",
+        "Group → token" => "Group 1 corresponds to token[0]; noncapturing groups have no token.",
+        "Position" or "Position (0-based)" => "Position in the original text: zero-based UTF-16 index; -1 means no capture.",
+        "Length" => "Capture length in UTF-16 units. Zero is an empty capture.",
+        "Submessage / pattern" => "The selected or available definition. Details show individual attempts.",
+        "Message ID" => "The token value used to select a submessage.",
+        "Result" => "Distinguishes a match, main regex mismatch, missing submessage, body mismatch and error.",
+        "Line" => "The original line number in the log file.",
+        "Group" => "Capturing group number. Group 0 is the entire match.",
+        "Capture" => "The sequence number of a repeated capture within the same group.",
+        "Match" => "The sequence number of the match found in Message.",
+        "Success" => "Whether this group captured a value in this match.",
+        "Value" => "Captured text. Long values may be truncated in the table.",
+        "Stage" => "Whether the capture comes from the main regex, a token or a submessage.",
+        "Token / field" => "Token or submessage target field name; its color matches the capture.",
+        _ => "Details and examples: F1."
     };
 }
 

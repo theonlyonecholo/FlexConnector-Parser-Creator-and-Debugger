@@ -6,63 +6,63 @@ internal static class HelpTopics
 {
     public static readonly HelpTopic[] All =
     [
-        new("start", "Začínáme: od logu k události", """
-Parser je předpis, jak z původního textu logu získat strukturovanou událost ArcSight. Regex rozpozná text, tokeny pojmenují zachycené hodnoty a mapování je přiřadí do polí event.*.
+        new("start", "Getting started: from log to event", """
+A parser describes how to turn original log text into a structured ArcSight event. The regex recognizes text, tokens name captured values, and mappings assign them to event.* fields.
 
-Postup zpracování
-1. Konektor získá vstupní záznam. Způsob čtení a případné spojení více řádků závisí na typu konektoru.
-2. Hlavní regex rozdělí zprávu na zachytávací skupiny.
-3. token[n].name/type/format určí název, datový typ a případný formát hodnoty.
-4. Volitelné submessages rozliší varianty těla zprávy podle message ID a dalších regexů.
-5. Mapování event.* přiřadí hodnoty cílovým polím; operace mohou hodnoty převést nebo doplnit.
-6. Severity mapping sjednotí závažnost. Extra processors mohou navázat další parsery či mapování.
-Tento přehled vysvětluje role částí konfigurace; není popisem všech interních fází konektoru.
+Processing overview
+1. The connector receives a record. Input handling and multiline assembly depend on the connector type.
+2. The main regex divides the message into capturing groups.
+3. token[n].name/type/format specifies each value's name, data type and optional format.
+4. Optional submessages distinguish body variants using a message ID and additional regex patterns.
+5. event.* mappings assign values to target fields; operations can convert or supplement them.
+6. Severity mapping normalizes severity. Extra processors can invoke additional parsers or mappings.
+This explains the configuration components, not every internal connector stage.
 
-První parser v programu
-Otevřete .properties nebo upravte výchozí příklad. Do Message vložte log, do Regex dekódovaný výraz. Spusťte F5, prohlédněte skupiny a vytvořte Tokeny z regexu. Nastavte typy a mapování v konfiguraci. Vyzkoušejte více logů přes Test souboru logů a nakonec Uložit.
+Your first parser
+Open a .properties file or edit the initial example. Paste a log into Message and enter a decoded expression in Regex. Press F5, inspect groups and choose Tokens from regex. Configure types and event mappings. Try several logs with Test log file, then Save.
 
-Příklad
+Example
 Message: status=404 message=Resource missing
 Regex: status=(\d+) message=(.*)
-Skupina 1 obsahuje 404, skupina 2 text Resource missing.
-Token Status můžete mapovat do event.deviceSeverity a token Message do event.message.
+Group 1 contains 404; group 2 contains Resource missing.
+Map Status to event.deviceSeverity and Message to event.message.
 
-Úspěšný lokální test potvrzuje shodu regexů, nikoli úplnou správnost události v ArcSight. Před nasazením ověřte parser v cílovém konektoru.
-Podklad: FlexConn_DevGuide.pdf, str. 69–76.
+A successful local test confirms regex matches, not the complete correctness of the ArcSight event. Verify the parser in the target connector before deployment.
+Reference: FlexConn_DevGuide.pdf, pp. 69–76.
 """),
-        new("regex", "Regex, Message a debugger", """
-Message je původní text, který testujete. Regex je vzor pro jeho rozpoznání. Dlouhý výraz se pouze vizuálně zalamuje; do obsahu se nevkládá nový řádek.
+        new("regex", "Regex, Message and the debugger", """
+Message is the original text being tested. Regex is the pattern used to recognize it. Long expressions wrap visually without inserting newlines into their content.
 
-Základní zápis
-\d = číslice, \s = bílý znak, \S = neprázdný znak bez whitespace, . = libovolný znak s výjimkou konce řádku v běžném režimu.
-+ znamená alespoň jednou, * nula nebo vícekrát, ? volitelné, {2} přesně dvakrát. [A-Z] vybírá znak z rozsahu, A|B alternativu. ^ a $ označují hranice řádku/vstupu podle režimu.
-(...) zachytí hodnotu a přidá skupinu. (?:...) seskupí výraz bez tokenu. (.*) je velmi obecné; pro konkrétní pole raději použijte omezenější vzor.
+Basic syntax
+\d = digit, \s = whitespace, \S = non-whitespace character, . = any character except a newline in the usual mode.
++ means one or more, * zero or more, ? optional, {2} exactly twice. [A-Z] selects a character from a range; A|B selects an alternative. ^ and $ mark line/input boundaries depending on the mode.
+(...) captures a value and adds a group. (?:...) groups an expression without a token. (.*) is very broad; prefer a more specific pattern for a known field.
 
-Klikněte do zachytávací skupiny: její záchyty se v Message zvýrazní modře. U vnoření se vybere nejvnitřnější zachytávací skupina. Skupina bez záchytu není totéž jako prázdný záchyt. U prázdného záchytu se zobrazí pozice, ale není co obarvit. Podmíněné a balancing skupiny mapování kliknutí nepodporuje.
+Click inside a capturing group to highlight its captures in blue in Message. For nested groups, the innermost capturing group is selected. An unmatched group differs from an empty capture. Empty captures show a position but have no text to highlight. Click navigation does not support conditional or balancing groups.
 
-Automaticky: přepočet po pauze při psaní. Při vypnutí použijte F5.
-IgnoreCase (i): ignoruje velikost písmen.
-Multiline (m): mění význam ^ a $ pro jednotlivé řádky; nespojuje logy.
-Singleline (s): tečka odpovídá i znaku nového řádku.
-Celá zpráva: regex musí pokrýt celý vstup. Bez této volby může náhled najít několik dílčích shod. Test souboru vyžaduje celou zprávu vždy.
-Trim mezery/tab: pro náhled odstraní mezery a tabulátory z obou konců; pozice záchytů ukazuje v původním textu.
-Timeout ms: omezuje jednotlivé regex operace, aby složitý výraz nezablokoval náhled.
-Zastavit: zruší požadavek; běžící regex doběhne nejpozději po timeoutu.
+Automatic: refresh after a typing pause. When disabled, press F5.
+IgnoreCase (i): ignore letter case.
+Multiline (m): change ^ and $ to work with individual lines; this does not combine logs.
+Singleline (s): allow the dot to match newlines.
+Entire message: require the regex to cover the whole input. Otherwise the preview can find multiple partial matches. File testing always requires the entire message.
+Trim spaces/tabs: remove spaces and tabs from both ends for the preview; capture positions still refer to the original text.
+Timeout ms: limit individual regex operations so a complex expression cannot block the preview indefinitely.
+Stop: request cancellation; a running regex finishes or reaches its timeout.
 
-Debug tabulka
-Shoda = pořadí nalezené shody; Skupina 0 = celý odpovídající úsek; Skupina 1 = token[0]. Záchyt = pořadí opakovaného zachycení stejné skupiny. Úspěch = zda skupina něco zachytila. Pozice = index UTF-16 od nuly; Délka = počet jednotek UTF-16. Nezachycená skupina má pozici -1. Hodnota = zachycený text. Kliknutí na řádek zvýrazní tento záchyt; šipky procházejí záchyty, nikoli kroky backtrackingu.
+Debug table
+Match = match sequence number. Group 0 = entire match; Group 1 = token[0]. Capture = sequence number of repeated captures within a group. Success = whether the group captured a value. Position = zero-based UTF-16 index; Length = number of UTF-16 units. An unmatched group has position -1. Value = captured text. Click a row to highlight that capture; arrows navigate captures, not backtracking steps.
 
-Přepínače i/m/s, Celá zpráva a Trim jsou nastavení náhledu. Pro skutečný parser zapište příznaky a trim.message do konfigurace.
+The i/m/s, Entire message and Trim switches are preview settings. Configure flags and trim.message in the properties file for the actual parser.
 """),
-        new("properties", "Konfigurace .properties a ukládání", """
-Konfigurace je textový soubor vlastností klíč=hodnota. Klíče rozlišují velikost písmen. Komentáře začínají # nebo !. U duplicitního klíče platí poslední definice. Zpětné lomítko na konci může pokračovat na dalším řádku.
+        new("properties", "Properties configuration and saving", """
+The configuration is a text file of key=value properties. Keys are case-sensitive. Comments begin with # or !. The last definition of a duplicate key wins. A trailing backslash can continue a value on the next line.
 
-Dvě podoby regexu
-Do pole Regex pište: status=(\d+) message=(.*)
-V .properties musí být: regex=status=(\\d+) message=(.*)
-Properties mají vlastní escapování, proto je zpětné lomítko zdvojené. Regex → Konfigurace escapuje automaticky; Konfigurace → Regex hodnotu dekóduje.
+Two representations of a regex
+In the Regex field: status=(\d+) message=(.*)
+In .properties: regex=status=(\\d+) message=(.*)
+Properties has its own escaping, so backslashes are doubled. Regex → Configuration escapes automatically; Configuration → Regex decodes the value.
 
-Minimální příklad konfigurace
+Minimal configuration example
 regex=status=(\\d+) message=(.*)
 token.count=2
 token[0].name=Status
@@ -73,184 +73,184 @@ event.deviceSeverity=Status
 event.message=Message
 severity.map.high.if.deviceSeverity=400..599
 
-Otevřít .properties: načte soubor a hlavní regex. Uložit zapíše aktuální konfiguraci; Uložit jako zvolí jiný soubor. Pokud se pole Regex liší, program nabídne jeho zápis. Změna v dialogu tlačítkem Použít ještě neznamená uložení na disk.
-Konfigurace → Regex nahradí pracovní výraz hodnotou z konfigurace. Regex → Konfigurace aktualizuje vlastnost regex, nikoli tokeny. Při změně skupin zkontrolujte token.count, názvy a navázané odkazy.
+Open parser loads a file and its main regex. Save writes the current configuration; Save as chooses another file. If the Regex field differs, the application offers to write it into the configuration. Applying a dialog does not save to disk.
+Configuration → Regex replaces the working expression with the configured value. Regex → Configuration updates the regex property, not the tokens. After changing groups, check token.count, names and dependent references.
 
-Čtení properties používá Latin-1 nebo BOM; export ASCII s Unicode escapes zachová i české znaky. Nezaměňujte to s volbou kódování vstupního souboru logů.
+Properties files are read as Latin-1 or using their BOM. ASCII export with Unicode escapes preserves international characters. This is separate from the log file encoding setting.
 
-Ctrl+Z: až 100 textových kroků zpět v aktivním poli. Ctrl+Y / Ctrl+Shift+Z: znovu. Nová změna zahodí větev pro obnovení. Historie se neukládá na disk. Otevření jiného parseru ji resetuje. Použití generátoru lze vrátit v hlavním poli konfigurace. Historie se nevztahuje na strukturální operace stromu a tabulky.
-Podklad: příručka, str. 69–71; podrobnosti historie a ukládání popisují tuto aplikaci.
+Ctrl+Z: undo up to 100 text edits in the active field. Ctrl+Y / Ctrl+Shift+Z: redo. A new edit discards the redo branch. History is not saved to disk. Opening another parser resets it. Generated changes can be undone in the main configuration field. History does not cover structural tree or table operations.
+Reference: guide, pp. 69–71; history and saving details describe this application.
 """),
-        new("tokens", "Tokeny a datové typy", """
-Token je pojmenovaná hodnota získaná ze zachytávací skupiny. První skupina odpovídá token[0], druhá token[1]; token.count určuje jejich počet. Název slouží jako odkaz v mapování. Typ má odpovídat cílovému event poli.
+        new("tokens", "Tokens and data types", """
+A token is a named value from a capturing group. The first group corresponds to token[0], the second to token[1]; token.count specifies the count. The name is used in mapping references. The type should match the target event field.
 
-Tokeny z regexu
-Generátor vytvoří řádek pro každou zachytávací skupinu. Skupina 0 a (?:...) token nevytvářejí. Existující metadata přebírá podle indexu; při změně pořadí skupin zkontrolujte význam názvů. Názvy musejí být neprázdné a jedinečné. Použití také zapíše hlavní regex a odstraní přebytečné tokeny. Odkazy v mapování a submessages nepřejmenovává.
-Ukázka z Message zobrazuje surový text tokenu z první shody aktuální zprávy. U opakované skupiny jde o poslední záchyt. Náhled přebírá přepínače hlavního debuggeru, rozlišuje prázdný a nezachycený token a neprovádí typové převody. Delší ukázka je dostupná po najetí na buňku. Ukázky se neukládají do parseru.
+Tokens from regex
+The generator creates one row per capturing group. Group 0 and (?:...) do not create tokens. Existing metadata is reused by index; check name meanings after reordering groups. Names must be nonempty and unique. Apply also writes the main regex and removes surplus tokens. It does not rename references in mappings or submessages.
+Message snippet shows raw token text from the first match in the current message. For repeated groups, it shows the last capture. The preview uses the main debugger settings, distinguishes empty and unmatched tokens, and does not convert types. Hover over a cell for a longer snippet. Snippets are not saved into the parser.
 
-Typy
-String: text, například uživatel nebo zpráva.
-Integer: celé číslo od -2147483648 do 2147483647, například port.
-Long: celé číslo od -9223372036854775808 do 9223372036854775807.
-Double: desetinné číslo; příručka ho uvádí pro ESM domain field sets (str. 204).
-IPAddress: IPv4; IPv6 při ipv6.aware=true. Nepřepínejte parser na IPv6 pouze změnou typu bez kontroly konfigurace.
-IPv6Address: příručka uvádí 16 bajtů jako 32 hexadecimálních znaků.
-MacAddress: MAC adresa, například 00:06:3E:22:51:B9 nebo s pomlčkami.
-Date: datum; výchozí návrh MM/dd/yyyy.
-Time: denní čas; výchozí návrh HH:mm:ss.
-TimeStamp: datum a/nebo čas; například yyyy-MM-dd HH:mm:ss.
-RegexToken: další extrakce substitucí, například s/From: (.*)/$1/.
+Types
+String: text, such as a user name or message.
+Integer: whole number from -2147483648 to 2147483647, such as a port.
+Long: whole number from -9223372036854775808 to 9223372036854775807.
+Double: decimal number; the guide documents it for ESM domain field sets (p. 204).
+IPAddress: IPv4; IPv6 with ipv6.aware=true. Check the configuration before switching a parser to IPv6.
+IPv6Address: the guide specifies 16 bytes represented as 32 hexadecimal characters.
+MacAddress: MAC address, e.g. 00:06:3E:22:51:B9, also with hyphens.
+Date: date; suggested default MM/dd/yyyy.
+Time: time of day; suggested default HH:mm:ss.
+TimeStamp: date and/or time; for example yyyy-MM-dd HH:mm:ss.
+RegexToken: further extraction by substitution, such as s/From: (.*)/$1/.
 
-Sloupec Typ nabízí seznam. U Date, Time, TimeStamp a RegexToken se při prázdném formátu doplní návrh. Existující formát se zachová: po změně typu jej zkontrolujte. Neznámý typ z původního souboru zůstane v nabídce.
-Návrh formátu otevře pomocníka pro vybraný řádek. Formát můžete také napsat přímo do tabulky. Prázdný formát při exportu odstraní vlastnost token[n].format.
-Lokální regex debugger ukazuje surové záchyty; neprovádí tyto typové konverze.
-Podklad: příručka, str. 71, 196–197 a 204.
+The Type column provides a list. Date, Time, TimeStamp and RegexToken supply a suggestion when Format is empty. Existing formats are preserved: check them after changing type. Unknown types from the original file remain in the list.
+Format builder opens the helper for the selected row. You can also enter a format directly in the table. An empty format removes token[n].format on export.
+The local regex debugger shows raw captures; it does not perform these type conversions.
+Reference: guide, pp. 71, 196–197 and 204.
 """),
-        new("formats", "Formát data, času a RegexToken", """
-Formát říká konektoru, jak přečíst hodnotu tokenu. Není to regex. Používá symboly ArcSight/Java, ne formátování .NET.
+        new("formats", "Date, time and RegexToken formats", """
+A format tells the connector how to read a token value. It is not a regex. It uses ArcSight/Java symbols, not .NET formatting.
 
-Návrhář
-Vyberte šablonu a upravte pole Formát. Kliknutí na tlačítko symbolu jej vloží na kurzor nebo nahradí výběr. Použít formát vrátí hodnotu do řádku tokenu. Bez formátu pole vymaže; Zrušit změny zahodí. Ctrl+Z vrací textové úpravy.
+Format builder
+Choose a template and edit Format. Clicking a symbol inserts it at the cursor or replaces selected text. Apply format returns the value to the token row. Clear format empties the field; Cancel discards the draft. Ctrl+Z undoes text edits.
 
-Nejčastější symboly
-yyyy rok, MM měsíc číslem, MMM zkrácený název měsíce, dd den v měsíci.
-HH hodina 0–23, hh hodina 1–12 s a pro AM/PM, kk hodina 1–24, KK hodina 0–11.
-mm minuty, ss sekundy, SSS milisekundy. Pozor na MM versus mm!
-EEE den týdne, G éra, w týden v roce, W týden v měsíci, D den v roce, F pořadí dne týdne v měsíci.
-z název zóny, Z číselná zóna RFC 822 (např. +0200).
-Doslovný text vložte do apostrofů: 'T' nebo 'at'. Dva apostrofy znamenají jeden doslovný apostrof.
+Common symbols
+yyyy year, MM numeric month, MMM abbreviated month name, dd day of month.
+HH hour 0–23, hh hour 1–12 with a for AM/PM, kk hour 1–24, KK hour 0–11.
+mm minutes, ss seconds, SSS milliseconds. Take care with MM versus mm!
+EEE day of week, G era, w week of year, W week of month, D day of year, F day of week in month.
+z time zone name, Z numeric RFC 822 time zone (e.g. +0200).
+Enclose literal text in single quotes: 'T' or 'at'. Two single quotes represent one literal single quote.
 
-Příklady hodnot → formát
+Example values → formats
 2026-10-14 09:30:05 → yyyy-MM-dd HH:mm:ss
 2026-10-14T09:30:05+0200 → yyyy-MM-dd'T'HH:mm:ssZ
 09:30:05.123 → HH:mm:ss.SSS
 Oct 14 09:30:05 → MMM dd HH:mm:ss
-Syslog bez roku vyžaduje doplnění roku v mapování, například __useCurrentYear. Jazyk názvů měsíců a časovou zónu ověřte v konektoru.
+Syslog without a year requires supplying one through mapping, e.g. __useCurrentYear. Verify the month-name language and time zone in the connector.
 
 RegexToken
-s/From: (.*)/$1/ vybere z hodnoty From: rajiv jméno rajiv. Část před druhým lomítkem je regex; $1 v náhradě odkazuje na jeho první skupinu. To je další zpracování hodnoty tokenu, nikoli hlavní regex celého logu.
+s/From: (.*)/$1/ extracts rajiv from From: rajiv. The part before the second slash is a regex; $1 in the replacement refers to its first group. This further processes the token value; it is not the main regex for the entire log.
 
-Návrhář vytváří text konfigurace, nevaliduje převod konkrétní hodnoty. Šablona je výchozí návrh: přizpůsobte ji skutečnému logu. Do UI zapisujte dekódovaný formát; escapování properties udělá export.
-Podklad: příručka, str. 138 a 196–197.
+The builder produces configuration text; it does not validate conversion of a particular value. Templates are starting points: adapt them to the actual log. Enter a decoded format; export handles properties escaping.
+Reference: guide, pp. 138 and 196–197.
 """),
-        new("mapping", "Event mapping a operace", """
-Normalizace převádí různé logy na jednotná pole ArcSight. Token je vstupní proměnná; event.* je cílové pole události.
+        new("mapping", "Event mapping and operations", """
+Normalization maps different logs to common ArcSight fields. A token is an input variable; event.* is a target event field.
 
-Přímé mapování
+Direct mapping
 event.sourceAddress=ClientIp
 event.sourcePort=ClientPort
 event.message=Message
 event.deviceReceiptTime=Timestamp
-Typ tokenu musí odpovídat typu cílového pole. IPAddress není totéž co String, i když obě hodnoty vypadají jako text IP adresy.
+The token type must match the target field type. IPAddress differs from String even when both look like IP address text.
 
-Výrazy a konstanty
+Expressions and constants
 event.deviceProduct=__stringConstant("MyProduct")
 event.deviceReceiptTime=__useCurrentYear(Timestamp)
-Operace začínající __ mohou převádět čísla, skládat text, doplňovat čas nebo vybírat hodnoty. Parametry jsou odkazy na tokeny či literály podle konkrétní operace. Přesné signatury hledejte v příloze A příručky.
+Operations beginning with __ can convert numbers, combine text, supply time components or select values. Parameters are token references or literals as required by the operation. See Appendix A of the guide for exact signatures.
 
-Příklady významu polí
-source/destination označují zdroj a cíl popisované události; device označuje zařízení, které ji hlásí. deviceSeverity je původní závažnost či zvolený stavový kód zařízení. message je textová zpráva. Není správné mapovat všechny adresy do sourceAddress bez znalosti významu logu.
-requestUrl obsahuje celé URL. Nekombinujte jeho nastavení s nastavováním odvozených URI komponent stejné události; příručka upozorňuje na konflikt.
+Field meanings
+source/destination identify the source and destination of the described event; device identifies the reporting device. deviceSeverity is the original severity or selected device status code. message contains message text. Understand the log before mapping addresses to sourceAddress.
+requestUrl contains the full URL. Avoid assigning it together with derived URI components of the same event; the guide warns of a conflict.
 
-Editor Event mapping…
-Vyberte cílové pole; zobrazí se očekávaný typ. Režim Token nabídne deklarované tokeny, Konstanta vytvoří __stringConstant a Výraz uloží zadanou operaci. Přidat / aktualizovat vloží návrh do tabulky nebo aktualizuje existující stejné pole. Nahoře rozpracovaný návrh je nutné nejprve přidat nebo vyprázdnit.
-Stávající řádky lze upravit dvojklikem v tabulce. Odstranit mapování smaže vybraný řádek. Použít v konfiguraci zapíše změny do hlavního textu; pak Uložit. Zrušit návrh zahodí. Přímá mapování event.* jsou oddělena od submessage mappings a od ostatních vlastností, které editor zachovává.
-Editor odmítne duplicitní pole a prázdné výrazy. Diagnostika upozorní na neznámý přímý token, nesoulad jeho typu s katalogem polí, chybějící event.name nebo konflikt requestUrl s URI komponentami. Upozornění nebrání uložení, protože hodnoty může doplnit jiná část parseru. Vlastní event pole lze zadat ručně.
-Tato aplikace obecné ArcSight operace a event mapping nevykonává. Kontrola typů se týká přímých tokenů, ne návratových typů výrazů. Zelená shoda regexu tedy neověřuje výslednou událost.
-Podklad: příručka, str. 71–73, příloha A a příloha E od str. 198.
+Event mapping editor
+Choose a target field to see its expected type. Token mode lists declared tokens, Constant creates __stringConstant, and Expression stores an entered operation. Add / update inserts the draft into the table or updates the same field. Add or clear any unfinished draft above the table before applying.
+Double-click table cells to edit existing mappings. Remove mapping deletes the selected row. Apply to configuration writes changes into the main text; then Save. Cancel discards the draft. Direct event.* mappings are separate from submessage mappings and other properties, which the editor preserves.
+The editor rejects duplicate fields and empty expressions. Diagnostics warn about unknown direct tokens, type mismatches against the field catalog, missing event.name, or requestUrl/URI conflicts. Warnings do not prevent saving because another parser component may supply values. Custom event fields can be entered manually.
+The application does not execute general ArcSight operations or event mapping. Type checks cover direct tokens, not expression return types. A green regex match does not validate the resulting event.
+Reference: guide, pp. 71–73, Appendix A and Appendix E from p. 198.
 """),
-        new("submessages", "Submessages: více variant logu", """
-Submessage je část původního logu, kterou po hlavním regexu rozebere další pattern. Hodí se pro společnou hlavičku a různé formáty těla zprávy.
+        new("submessages", "Submessages: multiple log variants", """
+A submessage is part of the original log parsed by another pattern after the main regex. It is useful for logs with a common header and different body formats.
 
-Příklad
+Example
 Log: id=LOGIN body=user=alice result=success
-Hlavní regex v editoru: id=(\S+) body=(.*)
-token[0].name=MessageID, token[1].name=Body (oba String).
-Token podzprávy = Body; Token message ID = MessageID.
-Submessage s Message ID LOGIN má regex user=(\S+) result=(\S+).
+Main regex in the editor: id=(\S+) body=(.*)
+token[0].name=MessageID, token[1].name=Body (both String).
+Submessage token = Body; Message ID token = MessageID.
+The submessage with Message ID LOGIN uses regex user=(\S+) result=(\S+).
 fields = event.sourceUserName,event.deviceAction
-První skupina podzprávy odpovídá $1 (alice), druhá $2 (success). Jejich číslování začíná znovu od jedničky.
+The first submessage group is $1 (alice), the second $2 (success). Numbering starts again at one.
 
-Pole editoru
-Token podzprávy: název tokenu obsahujícího tělo, vlastnost submessage.token.
-Token message ID: token určující výběr definice, submessage.messageid.token.
-Trim submessage: odstraní okrajové mezery/tabulátory před testem těla.
-Message ID: přesná hodnota, pro kterou je definice určena.
-Default pro neznámé ID: definice bez vlastnosti messageid. Použije se pro ID, které není definováno; nikoli při neshodě všech patternů známého ID.
-regex: dekódovaný vzor pro celé tělo podzprávy.
-fields: cílová event pole v pořadí zachytávacích skupin, oddělená čárkami.
-types: explicitní typy v témže pořadí; konektor jinak může typ odvodit z cílového pole.
-formats: formáty ve stejném pořadí; null označuje položku bez formátu.
-mappings: výrazy pro jednotlivá fields, například __getProtocolName($1)|$2. Výchozí oddělovač je |, protože operace mohou obsahovat čárky.
-mappings.delimiter: vlastní oddělovač mappings.
-extramappings: další přiřazení, například event.name=__stringConstant("Unparsed event").
-extramappings.delimiter: oddělovač dalších přiřazení (výchozí |).
+Editor fields
+Submessage token: the token containing the body, property submessage.token.
+Message ID token: the token selecting a definition, submessage.messageid.token.
+Trim submessage: remove leading and trailing spaces/tabs before testing the body.
+Message ID: the exact value this definition handles.
+Default for unknown IDs: a definition without a messageid property. Used for undefined IDs, not when all patterns for a known ID fail.
+regex: decoded pattern for the entire submessage body.
+fields: comma-separated target event fields in capturing group order.
+types: explicit types in the same order; otherwise the connector may infer types from target fields.
+formats: formats in the same order; null marks an item without a format.
+mappings: expressions for individual fields, e.g. __getProtocolName($1)|$2. The default separator is | because operations may contain commas.
+mappings.delimiter: a custom mappings separator.
+extramappings: additional assignments, e.g. event.name=__stringConstant("Unparsed event").
+extramappings.delimiter: separator for additional assignments (default |).
 
-Strom a pořadí
-+ Submessage přidá novou definici. + Pattern přidá variantu do vybrané definice. Odstranit smaže vybraný pattern nebo celou definici. Dříve/Později změní pořadí. Vyhraje první odpovídající pattern; přesné varianty dejte před obecné (.*). Indexy a počty se při použití přepočítají.
+Tree and order
++ Submessage adds a definition. + Pattern adds a variant to the selected definition. Remove deletes the selected pattern or entire definition. Earlier/Later changes the order. The first matching pattern wins; put specific variants before broad ones such as (.*). Indices and counts are recalculated on Apply.
 
-Testovat log s těmito změnami vyhodnotí návrh nad celým vybraným logem. Kliknutí do skupiny zvýrazní pole, pokud byl použit právě tento pattern. U opakované skupiny jde o poslední hodnotu pole. Použít v konfiguraci vrátí změny do editoru; pak Uložit. Zrušit návrh zahodí. Přepnutí uzlu resetuje textovou historii polí.
-Lokální test provádí routing a regexy; fields jsou popisky. types, formats, mappings a extramappings se při náhledu neprovádějí.
-Podklad: příručka, str. 136–146.
+Test log with these changes evaluates the draft against the entire selected log. Clicking inside a group highlights its field if this pattern was selected. Repeated groups show the last field value. Apply to configuration returns changes to the editor; then Save. Cancel discards the draft. Switching nodes resets the fields' text histories.
+Local testing performs routing and regex matching; fields are labels. It does not execute types, formats, mappings or extramappings.
+Reference: guide, pp. 136–146.
 """),
-        new("batch", "Test souboru logů a ladění", """
-Test souboru logů používá jeden parser pro všechny řádky souboru. Jeden fyzický řádek = jedna událost, včetně prázdných řádků. Multiline konfigurace zde řádky nespojuje. Limit: 32 MB a 50 000 řádků.
+        new("batch", "Log file testing and debugging", """
+Test log file uses one parser for every line in a file. One physical line = one event, including empty lines. Multiline configuration does not combine lines here. Limits: 32 MB and 50,000 lines.
 
-Postup
-1. Zvolte kódování a Otevřít logy. UTF-8 rozpoznává BOM; Latin-1 použijte jen pro odpovídající soubor.
-2. Test běží na pozadí. Otestovat vše jej zopakuje, Zastavit ponechá zbývající řádky jako neotestované.
-3. Vyberte log nebo použijte šipky. Filtr omezí seznam na shody, problémy nebo neotestované.
-4. Detail ukáže původní text, barevné tokeny/pole, message ID a použité submessage[n].pattern[m]. Seznam pokusů ukáže, které patterny neuspěly.
-5. Upravit submessage otevře použitý nebo první zkoušený pattern. Přidejte variantu pro odlišný log. Upravit parser otevře celou konfiguraci. Po použití se soubor automaticky přetestuje.
-6. Změny se při zavření vrátí do hlavní konfigurace. Na disk je zapíšete přes Uložit.
+Workflow
+1. Select an encoding and Open logs. UTF-8 recognizes a BOM; use Latin-1 only for files in that encoding.
+2. Testing runs in the background. Test all repeats it; Stop leaves remaining rows untested.
+3. Select a log or use the arrows. Filter the list to matches, problems or untested entries.
+4. Details show the original text, colored tokens/fields, message ID and selected submessage[n].pattern[m]. The attempt list shows which patterns failed.
+5. Edit submessage opens the selected or first attempted pattern. Add a variant for a different log. Edit parser opens the entire configuration. Applying changes automatically retests the file.
+6. Changes return to the main configuration when you close the window. Use Save to write them to disk.
 
-Výsledky
-Shoda: hlavní regex a případný submessage odpovídají.
-Hlavní regex: neshoda: nejprve opravte společnou hlavičku, oddělovače nebo celý vzor.
-Chybí submessage: není definice pro message ID ani default.
-Submessage: neshoda: ID je známé, ale žádná varianta těla neodpovídá. Default to neřeší.
-Chyba / timeout: překročený limit nebo problém se zpracováním; zkontrolujte detail.
-Neotestováno: záznam ještě nebyl vyhodnocen.
+Results
+Match: the main regex and any submessage match.
+Main regex: mismatch: first fix the common header, separators or overall pattern.
+Missing submessage: no definition for the message ID and no default.
+Submessage: mismatch: the ID is known, but no body variant matches. A default does not fix this.
+Error / timeout: a limit or processing error; inspect the details.
+Not tested: the record has not yet been evaluated.
 
-Při opravě zkontrolujte i dříve úspěšné logy. Obecnější pattern může změnit výběr varianty. Vybraný řádek se zachová, pokud zůstává v aktuálním filtru.
-Test používá konfiguraci včetně trim.message a trim.submessage, nikoli experimentální přepínače hlavního debuggeru.
+After a fix, check previously successful logs too. A broader pattern can change the selected variant. The selected line is retained if it remains in the active filter.
+Testing uses the configuration, including trim.message and trim.submessage, rather than the main debugger's experimental switches.
 """),
-        new("severity", "Severity: sjednocení závažnosti", """
-Zařízení mohou hlásit různou stupnici závažnosti nebo jen stavový kód. event.deviceSeverity nese tuto původní hodnotu; severity.map.* ji převádí na low, medium, high nebo veryhigh.
+        new("severity", "Severity: normalize device severity", """
+Devices may report different severity scales or only a status code. event.deviceSeverity carries the original value; severity.map.* maps it to low, medium, high or veryhigh.
 
-V dialogu nejprve zadejte event.deviceSeverity, například Status (název zachyceného tokenu). Pak vyplňte pravidla:
+In the dialog, first enter event.deviceSeverity, for example Status (a captured token name). Then fill in rules:
 high: 400..599
 medium: 300..399
 low: 100..299
-Seznam může být textový nebo číselný, například OPEN,CLOSE nebo 404,500. Rozsahy zahrnují obě hranice.
+Lists can contain text or numbers, such as OPEN,CLOSE or 404,500. Ranges include both endpoints.
 
-Výsledná vlastnost:
+Resulting property:
 severity.map.high.if.deviceSeverity=400..599
-Status 404 tak spadá do high. Prázdné pravidlo se odstraní. Volte pravidla podle významu událostí, nikoli jen podle velikosti čísla.
+Status 404 maps to high. Empty rules are removed. Choose rules based on event meaning, not just the size of a number.
 
-Náhled umí přímý odkaz event.deviceSeverity na token první shody. Obecný výraz ArcSight lze uložit, ale náhled jej nevyhodnotí. Text porovnává přesně; překryv pravidel označí jako nejednoznačný bez odhadu priority. Zkontrolujte pokrytí očekávaných hodnot.
-Podklad: příručka, str. 73–75.
+The preview supports a direct event.deviceSeverity reference to a token in the first match. General ArcSight expressions can be saved but are not evaluated in the preview. Text comparison is exact; overlapping rules are marked as ambiguous without assuming precedence. Check coverage of expected values.
+Reference: guide, pp. 73–75.
 """),
-        new("processors", "Extra processors: navazující parsery", """
-Extra processor předá hodnotu další konfiguraci. Používá se například pro JSON uvnitř event.message nebo pro doplnění hodnot z map souboru. Není to submessage: odkazuje na samostatný soubor a může používat jiný typ parseru.
+        new("processors", "Extra processors: downstream parsers", """
+An extra processor passes a value to another configuration. For example, it can process JSON within event.message or supplement values from a map file. It differs from a submessage: it references a separate file and may use another parser type.
 
-V editoru zvolte typ a Přidat šablonu. Doplňte cestu a parametry. Indexy musí být 0,1,2,… bez mezer; počet se při použití dopočítá. Po odebrání bloku přečíslujte následující indexy.
+Choose a type and Add template. Supply the path and parameters. Indices must be consecutive: 0,1,2,... without gaps; the count is calculated on Apply. After removing a block, renumber subsequent indices.
 
-Typy
-regex: další regulární výraz; delimited: pole oddělená oddělovačem; json: JSON; xml: XML; keyvalue: dvojice klíč/hodnota; standardkeyvalue: klíč=hodnota, dvojice oddělené čárkou; map: mapovací soubor; ntsubparser: podporované Windows application parsery.
+Types
+regex: another regular expression; delimited: delimiter-separated fields; json: JSON; xml: XML; keyvalue: key/value pairs; standardkeyvalue: key=value with comma-separated pairs; map: mapping file; ntsubparser: supported Windows application parsers.
 
-Parametry
-type: typ processoru. filename: odkaz na jeho konfiguraci, nikoli obsah parseru.
-field: vstupní event pole, například event.message.
-flexagent: true vybírá parsery ve flexagent, false v fcp.
-clearfieldafterparsing: zda po parsování vymazat vstupní pole.
-overrideeventmappings: zda přepsat existující mapování event polí.
-charencoding: kódování znaků.
-conditionfield: pole použité pro podmínku; conditiontype: způsob porovnání; conditionvalues: hodnoty oddělené čárkou. Platné druhy podmínek ověřte pro konkrétní processor.
-casesensitive / Casesensitive: rozlišování velikosti písmen; properties rozlišují velikost názvů, držte se klíče pro příslušný processor. Tabulka v příručce používá Casesensitive.
-concatenatevalues: u key-value parserů spojit hodnoty duplicitního klíče místo přepsání.
+Parameters
+type: processor type. filename: reference to its configuration, not the parser content.
+field: input event field, such as event.message.
+flexagent: true selects parsers in flexagent; false selects fcp.
+clearfieldafterparsing: whether to clear the input field after parsing.
+overrideeventmappings: whether to overwrite existing event field mappings.
+charencoding: character encoding.
+conditionfield: field used for a condition; conditiontype: comparison method; conditionvalues: comma-separated values. Verify valid condition types for the particular processor.
+casesensitive / Casesensitive: letter-case handling. Property names are case-sensitive; use the key required by the processor. The guide's table uses Casesensitive.
+concatenatevalues: combine duplicate key values in key-value parsers instead of overwriting them.
 
-Příklad
+Example
 extraprocessor.count=1
 extraprocessor[0].type=regex
 extraprocessor[0].filename=vendor/detail
@@ -258,27 +258,27 @@ extraprocessor[0].field=event.message
 extraprocessor[0].flexagent=true
 extraprocessor[0].clearfieldafterparsing=false
 
-Příručka umisťuje běžné konfigurace do user/agent/flexagent, map soubory do user/agent/fcp nebo user/agent/aup/fcp (aup má přednost).
-Program kontroluje strukturu konfigurace, nikoli existenci souborů. Navázané parsery lokálně nespouští. Cesty ze šablon nahraďte skutečnými.
-Podklad: příručka, str. 75–76.
+The guide places regular configurations in user/agent/flexagent and map files in user/agent/fcp or user/agent/aup/fcp (aup takes precedence).
+The application checks configuration structure, not file existence. It does not run linked parsers locally. Replace template paths with actual paths.
+Reference: guide, pp. 75–76.
 """),
-        new("limits", "Co náhled provádí a co ověřit v konektoru", """
-Program provádí: syntaktické čtení/zápis properties, regex shody a záchyty, jejich pozice a barvy, routing submessages a výběr prvního patternu, testování souboru logů a omezený náhled severity.
+        new("limits", "Preview scope and connector validation", """
+The application performs properties parsing/writing, regex matching and capture extraction, capture positioning and coloring, submessage routing and first-pattern selection, log file testing and a limited severity preview.
 
-Program neprovádí: obecné ArcSight operace, úplné event mapping, typové převody tokenů, zpracování jejich formátů a substitucí RegexToken, conditional mapping, navázané extra processors ani skládání multiline událostí při testu souboru.
+It does not perform general ArcSight operations, full event mapping, token type conversions, token format processing, RegexToken substitutions, conditional mapping, linked extra processors or multiline event assembly during file testing.
 
-Regex engine je .NET; ArcSight používá Java. Pojmenované skupiny, jejich číslování a některé konstrukce či Unicode chování se mohou lišit. Lokální shoda není potvrzením kompatibility každé konstrukce.
+The regex engine is .NET; ArcSight uses Java. Named groups, their numbering, some constructs and Unicode behavior may differ. A local match does not confirm compatibility of every construct.
 
-Náhled má limity: 250 000 znaků zprávy, 16 000 znaků regexu, 1 000 shod a 5 000 řádků záchytů. Souhrnný čas je omezen, jednotlivá regex operace má timeout. Zkrácený výsledek není úplný seznam všech záchytů. Debug ukazuje výsledky, ne interní backtracking.
+Preview limits: 250,000 message characters, 16,000 regex characters, 1,000 matches and 5,000 capture rows. Total processing time is bounded, and each regex operation has a timeout. Truncated results are not a complete list of captures. Debug shows results, not internal backtracking.
 
-Při neúspěchu
-1. Ověřte skutečný log, mezery, oddělovače a kódování.
-2. Odlište dekódovaný regex od escapované hodnoty v properties.
-3. Zkontrolujte token.count a pořadí skupin, názvy a odkazy.
-4. U submessages ověřte tělo, message ID, pořadí variant a default.
-5. U výsledné události ověřte typy, formáty, operace, časovou zónu, severity a navázané soubory v konektoru.
+Troubleshooting
+1. Check the actual log, spaces, separators and encoding.
+2. Distinguish the decoded regex from its escaped properties value.
+3. Check token.count, group order, names and references.
+4. For submessages, check the body, message ID, variant order and default.
+5. Verify the resulting event's types, formats, operations, time zone, severity and linked files in the connector.
 
-Zdroj popisu ArcSight: přiložený FlexConn_DevGuide.pdf, zejména str. 69–76, 131–146, 177–197 a 198–204. Chování tlačítek a limity popisují tuto C# aplikaci. Nápověda funguje offline a hledá i v obsahu témat.
+ArcSight reference: FlexConn_DevGuide.pdf, especially pp. 69–76, 131–146, 177–197 and 198–204. Button behavior and limits describe this C# application. Help works offline and searches topic content as well as titles.
 """)
     ];
 }

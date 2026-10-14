@@ -96,7 +96,7 @@ public sealed class PropertiesDocument
             {
                 if (i + 4 >= s.Length || !ushort.TryParse(s.AsSpan(i + 1, 4),
                     NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out ushort code))
-                    throw new FormatException("Neplatná Unicode escape sekvence v properties.");
+                    throw new FormatException("Invalid Unicode escape sequence in properties.");
                 b.Append((char)code);
                 i += 4;
             }

@@ -37,40 +37,40 @@ public sealed class ParserEvaluator
         Source = source;
         document = new(source);
         if (!document.Values.ContainsKey("regex"))
-            throw new FormatException("Chybí hlavní regex.");
+            throw new FormatException("The main regex is missing.");
         main = Compile(document.Get("regex"), "regex", timeoutMs);
         int count = Count(document, "token.count", 5000);
         tokens = Enumerable.Range(0, count).Select(i => document.Get($"token[{i}].name")).ToArray();
         if (tokens.Any(string.IsNullOrEmpty) || tokens.Distinct(StringComparer.Ordinal).Count() != count)
-            throw new FormatException("Tokeny musí mít neprázdné a jedinečné názvy.");
+            throw new FormatException("Token names must be nonempty and unique.");
         if (main.GetGroupNumbers().Length - 1 != count)
-            throw new FormatException("token.count neodpovídá počtu skupin hlavního regexu.");
+            throw new FormatException("token.count does not match the number of groups in the main regex.");
         int subCount = document.Values.ContainsKey("submessage.count") ? Count(document, "submessage.count", 1000) : 0;
         if (subCount == 0)
             return;
         bodyToken = Array.IndexOf(tokens, document.Get("submessage.token"));
         if (bodyToken < 0)
-            throw new FormatException("submessage.token neodkazuje na deklarovaný token.");
+            throw new FormatException("submessage.token does not reference a declared token.");
         string idName = document.Get("submessage.messageid.token");
         idToken = Array.IndexOf(tokens, idName);
         if (idName.Length > 0 && idToken < 0)
-            throw new FormatException("submessage.messageid.token neodkazuje na deklarovaný token.");
+            throw new FormatException("submessage.messageid.token does not reference a declared token.");
         int total = 0;
         for (int s = 0; s < subCount; s++)
         {
             string prefix = $"submessage[{s}].";
             string? id = document.Values.TryGetValue(prefix + "messageid", out var value) ? value : null;
             if (id is not null && idToken < 0)
-                throw new FormatException("Submessage s ID vyžaduje submessage.messageid.token.");
+                throw new FormatException("A submessage with an ID requires submessage.messageid.token.");
             int patterns = Count(document, prefix + "pattern.count", 1000);
             if (patterns == 0 || (total += patterns) > 5000)
-                throw new FormatException("Počet patternů musí být kladný, nejvýše 5000 celkem.");
+                throw new FormatException("The pattern count must be positive, with at most 5,000 patterns in total.");
             var items = new List<SubPattern>();
             for (int p = 0; p < patterns; p++)
             {
                 string key = prefix + $"pattern[{p}].";
                 if (!document.Values.ContainsKey(key + "regex"))
-                    throw new FormatException("Chybí " + key + "regex");
+                    throw new FormatException("Missing " + key + "regex");
                 items.Add(new(p, Compile(document.Get(key + "regex"), key + "regex", timeoutMs), document.Get(key + "fields").Split(',')));
             }
             submessages.Add(new(s, id, items));
@@ -80,13 +80,13 @@ public sealed class ParserEvaluator
     private static int Count(PropertiesDocument doc, string key, int max)
     {
         if (!int.TryParse(doc.Get(key), out int n) || n < 0 || n > max)
-            throw new FormatException($"{key} musí být 0 až {max}.");
+            throw new FormatException($"{key} must be between 0 and {max}.");
         return n;
     }
     private static Regex Compile(string pattern, string key, int timeout)
     {
         if (pattern.Length > RegexDebugger.MaxPatternLength)
-            throw new FormatException(key + ": příliš dlouhý regex.");
+            throw new FormatException(key + ": regex is too long.");
         try
         {
             return new(@"\A(?:" + pattern + @")\z", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(Math.Clamp(timeout, 10, 2000)));
@@ -125,15 +125,15 @@ public sealed class ParserEvaluator
         {
             cancellation.ThrowIfCancellationRequested();
             if (input.Length > RegexDebugger.MaxInputLength)
-                return Result(ParseState.Error, "Log překračuje limit délky náhledu.");
+                return Result(ParseState.Error, "The log exceeds the preview length limit.");
             var text = TrimInput(input, Flag("trim.message"));
             Match match = main.Match(text.Text);
             if (!match.Success)
-                return Result(ParseState.MainMismatch, "Hlavní regex se neshoduje s celou událostí.");
+                return Result(ParseState.MainMismatch, "The main regex does not match the entire event.");
             mainMatched = true;
             if (details)
             {
-                captures.Add(new("Hlavní regex", "Celá shoda", text.Offset, match.Length, ""));
+                captures.Add(new("Main regex", "Entire match", text.Offset, match.Length, ""));
                 for (int i = 0; i < tokens.Length; i++)
                 {
                     Group g = match.Groups[i + 1];
@@ -143,14 +143,14 @@ public sealed class ParserEvaluator
                 }
             }
             if (submessages.Count == 0)
-                return Result(ParseState.Matched, "Hlavní regex odpovídá; parser nemá submessages.");
+                return Result(ParseState.Matched, "The main regex matches; the parser has no submessages.");
             Group body = match.Groups[bodyToken + 1];
             if (!body.Success)
-                return Result(ParseState.Error, "Token submessage nebyl zachycen.");
+                return Result(ParseState.Error, "The submessage token was not captured.");
             if (idToken >= 0)
             {
                 if (!match.Groups[idToken + 1].Success)
-                    return Result(ParseState.Error, "Token message ID nebyl zachycen.");
+                    return Result(ParseState.Error, "The message ID token was not captured.");
                 id = match.Groups[idToken + 1].Value;
             }
             var candidates = submessages.Where(s => s.Id is not null && s.Id == id).ToArray();
@@ -158,7 +158,7 @@ public sealed class ParserEvaluator
             if (fallback)
                 candidates = submessages.Where(s => s.Id is null).ToArray();
             if (candidates.Length == 0)
-                return Result(ParseState.NoSubmessage, "Pro message ID není submessage ani default.");
+                return Result(ParseState.NoSubmessage, "No submessage or default is available for this message ID.");
             route = string.Join(", ", candidates.Select(s => $"submessage[{s.Index}]")) + (fallback ? " (default)" : "");
             var subtext = TrimInput(body.Value, Flag("trim.submessage"));
             int baseOffset = text.Offset + body.Index + subtext.Offset;
@@ -167,7 +167,7 @@ public sealed class ParserEvaluator
                 {
                     cancellation.ThrowIfCancellationRequested();
                     if (timer.ElapsedMilliseconds > 2000)
-                        return Result(ParseState.Error, "Překročen celkový limit testu události (2 s).");
+                        return Result(ParseState.Error, "The total event test time limit (2 s) was exceeded.");
                     Match sm = pattern.Regex.Match(subtext.Text);
                     if (details)
                         attempts.Add(new(sub.Index, pattern.Index, sm.Success));
@@ -178,7 +178,7 @@ public sealed class ParserEvaluator
                     route = $"submessage[{sub.Index}].pattern[{pattern.Index}]" + (fallback ? " (default)" : "");
                     if (details)
                     {
-                        captures.Add(new("Submessage", "Celá shoda", baseOffset, sm.Length, ""));
+                        captures.Add(new("Submessage", "Entire match", baseOffset, sm.Length, ""));
                         foreach (int n in pattern.Regex.GetGroupNumbers().Where(n => n > 0))
                         {
                             Group g = sm.Groups[n];
@@ -187,10 +187,10 @@ public sealed class ParserEvaluator
                                     baseOffset + g.Index, g.Length, subtext.Text.Substring(g.Index, Math.Min(g.Length, 2000)) + (g.Length > 2000 ? "…" : ""), n));
                         }
                     }
-                    return Result(ParseState.Matched, "Shoda hlavního regexu i submessage. První odpovídající pattern byl vybrán.");
+                    return Result(ParseState.Matched, "Both the main regex and submessage match. The first matching pattern was selected.");
                 }
-            return Result(ParseState.SubmessageMismatch, "Submessage existuje, ale žádný její pattern se neshoduje. Default se pro známé ID nepoužije.");
+            return Result(ParseState.SubmessageMismatch, "The submessage exists, but none of its patterns match. The default is not used for a known ID.");
         }
-        catch (RegexMatchTimeoutException) { return Result(ParseState.Error, "Regex překročil časový limit."); }
+        catch (RegexMatchTimeoutException) { return Result(ParseState.Error, "The regex timed out."); }
     }
 }

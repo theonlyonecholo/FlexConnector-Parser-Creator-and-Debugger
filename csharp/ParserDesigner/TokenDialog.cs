@@ -19,7 +19,7 @@ internal sealed class TokenDialog : Form
     {
         ResultSource = source;
         var tokens = TokenGenerator.Draft(source, pattern);
-        Text = "Tokeny z regexu";
+        Text = "Tokens from regex";
         Size = new Size(1200, 700);
         MinimumSize = new Size(740, 440);
         StartPosition = FormStartPosition.CenterParent;
@@ -31,13 +31,13 @@ internal sealed class TokenDialog : Form
             RowHeadersVisible = false,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         };
-        foreach (string column in new[] { "Skupina → token", "Název" })
+        foreach (string column in new[] { "Group → token", "Name" })
             table.Columns.Add(column, column);
-        var types = new DataGridViewComboBoxColumn { Name = "Typ", HeaderText = "Typ", FlatStyle = FlatStyle.Flat };
+        var types = new DataGridViewComboBoxColumn { Name = "Type", HeaderText = "Type", FlatStyle = FlatStyle.Flat };
         types.Items.AddRange(TokenFormats.Types.Concat(tokens.Select(t => t.Type)).Distinct(StringComparer.Ordinal).Cast<object>().ToArray());
         table.Columns.Add(types);
-        table.Columns.Add("Formát", "Formát");
-        table.Columns.Add("Snippet", "Ukázka z Message");
+        table.Columns.Add("Format", "Format");
+        table.Columns.Add("Snippet", "Message snippet");
         table.Columns[4].ReadOnly = true;
         table.Columns[4].FillWeight = 220;
         table.Columns[3].FillWeight = 200;
@@ -45,7 +45,7 @@ internal sealed class TokenDialog : Form
         foreach (DataGridViewColumn column in table.Columns)
             column.SortMode = DataGridViewColumnSortMode.NotSortable;
         foreach (var token in tokens)
-            table.Rows.Add($"{token.Index + 1} → token[{token.Index}]", token.Name, token.Type, token.Format, "Načítám…");
+            table.Rows.Add($"{token.Index + 1} → token[{token.Index}]", token.Name, token.Type, token.Format, "Loading…");
         table.CurrentCellDirtyStateChanged += (_, _) => { if (table.IsCurrentCellDirty && table.CurrentCell?.ColumnIndex == 2) table.CommitEdit(DataGridViewDataErrorContexts.Commit); };
         table.CellValueChanged += (_, e) =>
         {
@@ -60,17 +60,17 @@ internal sealed class TokenDialog : Form
             Dock = DockStyle.Top,
             Height = 180,
             Padding = new Padding(14),
-            Text = $"Nalezeno {tokens.Count} zachytávajících skupin. Skupina 0 ani (?:…) nevytváří token.\n" +
-            "Typ vyberte z nabídky. Date / Time / TimeStamp / RegexToken nabídnou výchozí formát, pokud je pole prázdné.\n" +
-            "Návrh formátu… otevře šablony a skládání formátu. Existující formát se při změně typu zachová; zkontrolujte jej.\n" +
-            "Použít zapíše i aktuální regex. Nepoužité tokeny se odstraní; event mapping a odkazy v submessages se nepřejmenovávají.\n" +
-            "Číslování vychází z .NET. Pojmenované skupiny mohou být v Java / ArcSight číslované jinak.\n" +
-            "Ukázka: surový text tokenu z první shody aktuálního Message, poslední záchyt opakované skupiny. Bez typových převodů."
+            Text = $"Found {tokens.Count} capturing groups. Group 0 and (?:…) do not create tokens.\n" +
+            "Select a type from the list. Date / Time / TimeStamp / RegexToken suggest a default format when the field is empty.\n" +
+            "Format builder… opens templates and format symbols. Existing formats are preserved when changing type; check them.\n" +
+            "Apply also writes the current regex. Unused tokens are removed; event mapping and submessage references are not renamed.\n" +
+            "Numbering follows .NET. Named groups may be numbered differently in Java / ArcSight.\n" +
+            "Snippet: raw token text from the first match in the current Message; the last capture for a repeated group. No type conversion."
         };
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 50, Padding = new Padding(8) };
-        var apply = new Button { Text = "Použít v konfiguraci", AutoSize = true };
-        var cancel = new Button { Text = "Zrušit", AutoSize = true, DialogResult = DialogResult.Cancel };
-        var design = new Button { Text = "Návrh formátu…", AutoSize = true, Enabled = tokens.Count > 0 };
+        var apply = new Button { Text = "Apply to configuration", AutoSize = true };
+        var cancel = new Button { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var design = new Button { Text = "Format builder…", AutoSize = true, Enabled = tokens.Count > 0 };
         design.Click += (_, _) =>
         {
             table.EndEdit();
@@ -92,14 +92,14 @@ internal sealed class TokenDialog : Form
                 var oldNames = doc.Values.Where(kv => kv.Key.StartsWith("token[", StringComparison.Ordinal) && kv.Key.EndsWith("].name", StringComparison.Ordinal)).Select(kv => kv.Value).ToArray();
                 string[] removed = oldNames.Except(edited.Select(t => t.Name), StringComparer.Ordinal).ToArray();
                 string updated = TokenGenerator.Apply(source, pattern, edited);
-                if (removed.Length > 0 && MessageBox.Show(this, "Tyto názvy tokenů již nebudou deklarované:\n" +
-                    string.Join(", ", removed.Take(30)) + "\n\nOdkazy v mapování a submessages zůstanou beze změny. Pokračovat?",
-                    "Změna tokenů", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
+                if (removed.Length > 0 && MessageBox.Show(this, "These token names will no longer be declared:\n" +
+                    string.Join(", ", removed.Take(30)) + "\n\nMapping and submessage references will remain unchanged. Continue?",
+                    "Token changes", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) != DialogResult.OK)
                     return;
                 ResultSource = updated;
                 DialogResult = DialogResult.OK;
             }
-            catch (FormatException ex) { MessageBox.Show(this, ex.Message, "Tokeny", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (FormatException ex) { MessageBox.Show(this, ex.Message, "Tokens", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
         buttons.Controls.AddRange([apply, design, cancel]);
         Controls.Add(table);
@@ -107,7 +107,7 @@ internal sealed class TokenDialog : Form
         Controls.Add(buttons);
         CancelButton = cancel;
         Theme.Apply(this);
-        table.Columns[4].ToolTipText = "Text zachycený pro token v první shodě Message. Nájezd na buňku zobrazí delší ukázku. Nezapisuje se do konfigurace.";
+        table.Columns[4].ToolTipText = "Text captured for the token in the first Message match. Hover over the cell for a longer snippet. Not written to the configuration.";
         var previewCancellation = new CancellationTokenSource();
         FormClosed += (_, _) => { previewCancellation.Cancel(); previewCancellation.Dispose(); };
         Shown += async (_, _) =>
@@ -124,14 +124,14 @@ internal sealed class TokenDialog : Form
                     var cell = table.Rows[token.Index].Cells[4];
                     string text = capture?.Value ?? "";
                     string display = text.Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t");
-                    cell.Value = capture is null ? "— bez záchytu" : text.Length == 0 ? "(prázdný záchyt)" : display.Length > 120 ? display[..120] + "…" : display;
-                    cell.ToolTipText = capture is null ? preview.Status : $"Pozice {capture.Index}, délka {capture.Length}\n" + (text.Length > 2000 ? text[..2000] + "…" : text);
+                    cell.Value = capture is null ? "— no capture" : text.Length == 0 ? "(empty capture)" : display.Length > 120 ? display[..120] + "…" : display;
+                    cell.ToolTipText = capture is null ? preview.Status : $"Position {capture.Index}, length {capture.Length}\n" + (text.Length > 2000 ? text[..2000] + "…" : text);
                 }
                 if (preview.Error is not null || preview.Matches.Count == 0)
-                    info.Text += "\nNáhled: " + preview.Status;
+                    info.Text += "\nPreview: " + preview.Status;
             }
             catch (OperationCanceledException) { }
         };
-        HelpUi.Describe(table, "tokens", "Každý řádek odpovídá skupině regexu. Upravte název, vyberte typ a případný formát; hlavičky sloupců vysvětlují význam.");
+        HelpUi.Describe(table, "tokens", "Each row corresponds to a regex group. Edit the name, choose a type and optional format; column headers explain their meaning.");
     }
 }

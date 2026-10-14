@@ -12,7 +12,7 @@ internal sealed class SubmessageDialog : Form
     private readonly UndoTextBox idToken = new() { Width = 145 };
     private readonly CheckBox trim = new() { Text = "Trim submessage", AutoSize = true };
     private readonly UndoTextBox id = new() { Dock = DockStyle.Fill };
-    private readonly CheckBox fallback = new() { Text = "Default pro neznámé ID", AutoSize = true };
+    private readonly CheckBox fallback = new() { Text = "Default for unknown IDs", AutoSize = true };
     private readonly Dictionary<string, TextBox> edits = [];
     private readonly Label selection = new() { Dock = DockStyle.Top, Height = 34, Padding = new Padding(4), Font = new Font("Segoe UI Semibold", 11) };
     private readonly RichTextBox sample = new() { ReadOnly = true, Dock = DockStyle.Fill, DetectUrls = false };
@@ -30,7 +30,7 @@ internal sealed class SubmessageDialog : Form
     {
         original = ResultSource = source;
         model = SubmessageConfiguration.Load(source);
-        Text = "Submessages — definice a pořadí patternů";
+        Text = "Submessages — definitions and pattern order";
         Size = new Size(1150, 830);
         MinimumSize = new Size(950, 720);
         StartPosition = FormStartPosition.CenterParent;
@@ -38,8 +38,8 @@ internal sealed class SubmessageDialog : Form
         idToken.Text = model.IdToken;
         trim.Checked = model.Trim;
         var routing = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 54, Padding = new Padding(8), AutoScroll = true, WrapContents = false };
-        routing.Controls.AddRange([new Label { Text = "Token podzprávy:", AutoSize = true }, bodyToken,
-            new Label { Text = "Token message ID:", AutoSize = true }, idToken, trim]);
+        routing.Controls.AddRange([new Label { Text = "Submessage token:", AutoSize = true }, bodyToken,
+            new Label { Text = "Message ID token:", AutoSize = true }, idToken, trim]);
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(8) };
         Button Add(Control parent, string label, Action action)
         {
@@ -48,8 +48,8 @@ internal sealed class SubmessageDialog : Form
             parent.Controls.Add(b);
             return b;
         }
-        Add(bottom, "Použít v konfiguraci", () => { ResultSource = BuildSource(); DialogResult = DialogResult.OK; });
-        var cancel = new Button { Text = "Zrušit", AutoSize = true, DialogResult = DialogResult.Cancel };
+        Add(bottom, "Apply to configuration", () => { ResultSource = BuildSource(); DialogResult = DialogResult.OK; });
+        var cancel = new Button { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
         bottom.Controls.Add(cancel);
         CancelButton = cancel;
         var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 8 };
@@ -70,7 +70,7 @@ internal sealed class SubmessageDialog : Form
             model.Messages[c.Message].Patterns.Add(SubmessageConfiguration.NewPattern());
             Rebuild(c.Message, model.Messages[c.Message].Patterns.Count - 1);
         });
-        Add(tools, "Odstranit", () =>
+        Add(tools, "Remove", () =>
         {
             Commit();
             if (current is not { } c)
@@ -81,8 +81,8 @@ internal sealed class SubmessageDialog : Form
                 model.Messages[c.Message].Patterns.RemoveAt(c.Pattern);
             Rebuild(Math.Min(c.Message, model.Messages.Count - 1), -1);
         });
-        Add(tools, "↑ Dříve", () => MoveDefinition(-1));
-        Add(tools, "↓ Později", () => MoveDefinition(1));
+        Add(tools, "↑ Earlier", () => MoveDefinition(-1));
+        Add(tools, "↓ Later", () => MoveDefinition(1));
         split.Panel1.Controls.Add(tree);
         split.Panel1.Controls.Add(tools);
         var fields = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 0, Padding = new Padding(8), AutoScroll = true };
@@ -111,8 +111,8 @@ internal sealed class SubmessageDialog : Form
             edit.TextChanged += (_, _) => ClearGroupHighlight();
         }
         sample.Text = sampleLog;
-        Field("Vybraný celý log", sample, 60);
-        var test = new Button { Text = "Testovat log s těmito změnami", AutoSize = true };
+        Field("Selected full log", sample, 60);
+        var test = new Button { Text = "Test log with these changes", AutoSize = true };
         test.Click += async (_, _) =>
         {
             try
@@ -128,7 +128,7 @@ internal sealed class SubmessageDialog : Form
             finally { if (!IsDisposed) test.Enabled = true; }
         };
         Field("", test, 38);
-        Field("Výsledek", result, 66);
+        Field("Result", result, 66);
         edits["regex"].MouseUp += async (_, _) => await HighlightGroupAsync();
         edits["regex"].KeyUp += async (_, _) => await HighlightGroupAsync();
         bodyToken.TextChanged += (_, _) => ClearGroupHighlight();
@@ -151,25 +151,25 @@ internal sealed class SubmessageDialog : Form
         };
         fallback.CheckedChanged += (_, _) => id.Enabled = !fallback.Checked;
         Theme.Apply(this);
-        HelpUi.Describe(bodyToken, "submessages", "Název tokenu hlavního regexu obsahujícího tělo podzprávy (submessage.token), například Body.");
-        HelpUi.Describe(idToken, "submessages", "Název tokenu, jehož hodnota vybírá submessage (submessage.messageid.token), například MessageID.");
-        HelpUi.Describe(id, "submessages", "Přesná hodnota ID, pro kterou je tato definice určena, například LOGIN.");
-        HelpUi.Describe(fallback, "submessages", "Default nemá vlastnost messageid. Použije se jen pro neznámé ID, nikoli pro neodpovídající pattern známého ID.");
-        HelpUi.Describe(trim, "submessages", "Odstraní okrajové mezery/tabulátory těla před testem (trim.submessage).");
-        HelpUi.Describe(tree, "submessages", "Definice a jejich patterny. Vyberte uzel pro úpravu; první odpovídající pattern v pořadí vyhrává.");
-        HelpUi.Describe(sample, "submessages", "Celý log převzatý z hlavního okna nebo testu souboru. Kliknutí do regex skupiny zvýrazní její pole.");
-        HelpUi.Describe(result, "submessages", "Výsledek testu návrhu: použitá cesta, důvod neshody nebo pozice vybraného pole.");
+        HelpUi.Describe(bodyToken, "submessages", "Main regex token containing the submessage body (submessage.token), for example Body.");
+        HelpUi.Describe(idToken, "submessages", "Token whose value selects the submessage (submessage.messageid.token), for example MessageID.");
+        HelpUi.Describe(id, "submessages", "The exact ID value for this definition, for example LOGIN.");
+        HelpUi.Describe(fallback, "submessages", "A default has no messageid property. It is used only for unknown IDs, not a mismatching pattern for a known ID.");
+        HelpUi.Describe(trim, "submessages", "Remove leading and trailing spaces/tabs from the body before testing (trim.submessage).");
+        HelpUi.Describe(tree, "submessages", "Definitions and their patterns. Select a node to edit; the first matching pattern in order wins.");
+        HelpUi.Describe(sample, "submessages", "The full log from the main window or file test. Click inside a regex group to highlight its field.");
+        HelpUi.Describe(result, "submessages", "Draft test result: selected route, mismatch explanation or selected field position.");
         foreach (var edit in edits)
             HelpUi.Describe(edit.Value, "submessages", edit.Key switch
             {
-                "regex" => "Dekódovaný regex pro celé tělo podzprávy. Skupiny se číslují znovu od $1.",
-                "fields" => "Cílová event pole v pořadí skupin, oddělená čárkou; např. event.sourceUserName,event.deviceAction.",
-                "types" => "Typy skupin ve stejném pořadí jako fields, např. String,IPAddress,Integer. Náhled převod neprovádí.",
-                "formats" => "Formáty skupin ve stejném pořadí. null označuje položku bez formátu.",
-                "mappings" => "Výrazy pro fields, standardně oddělené |; např. __getProtocolName($1)|$2. Provádí je konektor.",
-                "mappings.delimiter" => "Vlastní oddělovač položek mappings místo výchozího |.",
-                "extramappings" => "Další přiřazení event.pole=výraz, standardně oddělená |, například konstanta event.name.",
-                _ => "Vlastní oddělovač dalších přiřazení extramappings místo výchozího |."
+                "regex" => "Decoded regex for the entire submessage body. Group numbering starts again at $1.",
+                "fields" => "Comma-separated target event fields in group order, e.g. event.sourceUserName,event.deviceAction.",
+                "types" => "Group types in the same order as fields, e.g. String,IPAddress,Integer. The preview does not convert values.",
+                "formats" => "Group formats in the same order. null marks an item without a format.",
+                "mappings" => "Expressions for fields, separated by | by default; e.g. __getProtocolName($1)|$2. Executed by the connector.",
+                "mappings.delimiter" => "Custom separator for mappings instead of the default |.",
+                "extramappings" => "Additional event.field=expression assignments, separated by | by default, such as an event.name constant.",
+                _ => "Custom separator for extramappings instead of the default |."
             });
         Shown += (_, _) => split.SplitterDistance = 300;
         Rebuild(selectedSubmessage >= 0 ? selectedSubmessage : 0, selectedPattern);
@@ -215,7 +215,7 @@ internal sealed class SubmessageDialog : Form
         }
         if (!valid)
         {
-            selection.Text = "Přidejte submessage";
+            selection.Text = "Add a submessage";
             id.Clear();
             id.ResetHistory();
             return;
@@ -226,7 +226,7 @@ internal sealed class SubmessageDialog : Form
         fallback.Checked = m.MessageId is null;
         id.Enabled = !fallback.Checked;
         id.ResetHistory();
-        selection.Text = $"submessage[{value.Message}]" + (value.Pattern >= 0 ? $".pattern[{value.Pattern}] — klikněte do skupiny regexu" : "");
+        selection.Text = $"submessage[{value.Message}]" + (value.Pattern >= 0 ? $".pattern[{value.Pattern}] — click inside a regex group" : "");
         if (value.Pattern < 0)
             return;
         foreach (var edit in edits)
@@ -306,7 +306,7 @@ internal sealed class SubmessageDialog : Form
         var group = RegexGroupMap.At(RegexGroupMap.Build(edits["regex"].Text), edits["regex"].SelectionStart);
         if (group is null)
         {
-            result.Text = "Kurzor není v podporované zachytávací skupině.";
+            result.Text = "The cursor is not inside a supported capturing group.";
             return;
         }
         int version = highlightVersion;
@@ -324,7 +324,7 @@ internal sealed class SubmessageDialog : Form
                     return;
                 if (evaluated.UsedSubmessage != selected.Message || evaluated.UsedPattern != selected.Pattern)
                 {
-                    result.Text = $"{evaluated.Route}\r\nVybraný pattern nebyl použit pro tento log. {evaluated.Description}";
+                    result.Text = $"{evaluated.Route}\r\nThe selected pattern was not used for this log. {evaluated.Description}";
                     return;
                 }
                 var captures = evaluated.Captures.Where(c => c.Stage == "Submessage" && c.Group == group.Number).ToArray();
@@ -335,8 +335,8 @@ internal sealed class SubmessageDialog : Form
                     sample.SelectionBackColor = Color.LightSkyBlue;
                 }
                 sample.Select(start, length);
-                result.Text = $"{evaluated.Route} — skupina {group.Number} ({group.Name})\r\n" +
-                    (captures.Length == 0 ? "Skupina v tomto logu nic nezachytila." : string.Join("; ", captures.Select(c => $"{c.Name}: pozice {c.Index}, délka {c.Length}")));
+                result.Text = $"{evaluated.Route} — group {group.Number} ({group.Name})\r\n" +
+                    (captures.Length == 0 ? "The group did not capture anything in this log." : string.Join("; ", captures.Select(c => $"{c.Name}: position {c.Index}, length {c.Length}")));
             }
             finally { highlightWorker.Release(); }
         }

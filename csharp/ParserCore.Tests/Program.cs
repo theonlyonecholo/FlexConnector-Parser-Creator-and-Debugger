@@ -94,7 +94,7 @@ Test("Severity: lists, bounds and overlap", () =>
     Throws<FormatException>(() => AdvancedConfiguration.ValidateSeverity("2..1"));
     Throws<FormatException>(() => AdvancedConfiguration.ValidateSeverity("1,,2"));
     var d = new PropertiesDocument("severity.map.high.if.deviceSeverity=400..599\nseverity.map.low.if.deviceSeverity=500");
-    Check(AdvancedConfiguration.PreviewSeverity(d, "500").Contains("nejednoznačná"));
+    Check(AdvancedConfiguration.PreviewSeverity(d, "500").Contains("ambiguous"));
 });
 Test("Processors: templates, unknown options, count normalization", () =>
 {
@@ -166,7 +166,7 @@ Test("Regex: invalid syntax returns diagnostic and no stale spans", () =>
 Test("Regex: timeout on catastrophic backtracking", () =>
 {
     var r = RegexDebugger.Analyze(@"(a+)+$", new string('a', 10000) + "!", timeoutMs: 10);
-    Check(r.Error is not null && r.Status.Contains("limit"));
+    Check(r.Error is not null && r.Status.Contains("timeout"));
     Check(r.Matches.Count == 0);
 });
 Test("Regex: cancellation and bounded match output", () =>
@@ -175,7 +175,7 @@ Test("Regex: cancellation and bounded match output", () =>
     cts.Cancel();
     Throws<OperationCanceledException>(() => RegexDebugger.Analyze(".*", "x", cancellation: cts.Token));
     var r = RegexDebugger.Analyze("a", new string('a', 2000));
-    Check(r.Matches.Count == RegexDebugger.MaxMatches && r.Status.Contains("zkrácen"));
+    Check(r.Matches.Count == RegexDebugger.MaxMatches && r.Status.Contains("truncated"));
     Check(RegexDebugger.Analyze("a", new string('a', RegexDebugger.MaxInputLength + 1)).Error is not null);
 });
 Test("Repository examples: parsing, severity, file round trip", () =>
@@ -503,7 +503,7 @@ Test("Event mapping: diagnostics and custom expressions", () =>
     string source = "token[0].name=Port\ntoken[0].type=Integer\ntoken[1].name=Msg\ntoken[1].type=String";
     Check(EventMapping.Tokens(source)["Port"] == "Integer");
     var warnings = EventMapping.Warnings(source, [new("event.sourceAddress", "Port"), new("event.message", "Missing"), new("event.myCustomField", "__customOperation(Msg)")]);
-    Check(warnings.Any(w => w.Contains("očekává IPAddress", StringComparison.Ordinal)) && warnings.Any(w => w.Contains("Missing", StringComparison.Ordinal)));
+    Check(warnings.Any(w => w.Contains("expects IPAddress", StringComparison.Ordinal)) && warnings.Any(w => w.Contains("Missing", StringComparison.Ordinal)));
     var valid = new EventAssignment[] { new("event.sourcePort", "Port"), new("event.name", EventMapping.Constant("Event")) };
     Check(EventMapping.Warnings(source, valid).Count == 0);
     string expression = "__customOperation(Msg,\"a,b|č\")";

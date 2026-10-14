@@ -11,12 +11,12 @@ internal sealed partial class MainForm : Form
     private readonly TextBox source = Editor();
     private readonly TextBox report = Editor();
     private readonly Label status = new() { AutoSize = false, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
-    private readonly CheckBox automatic = new() { Text = "Automaticky", Checked = true, AutoSize = true };
+    private readonly CheckBox automatic = new() { Text = "Automatic", Checked = true, AutoSize = true };
     private readonly CheckBox ignoreCase = new() { Text = "IgnoreCase (i)", AutoSize = true };
     private readonly CheckBox multiline = new() { Text = "Multiline (m)", AutoSize = true };
     private readonly CheckBox singleline = new() { Text = "Singleline (s)", AutoSize = true };
-    private readonly CheckBox full = new() { Text = "Celá zpráva", AutoSize = true };
-    private readonly CheckBox trim = new() { Text = "Trim mezery/tab", AutoSize = true };
+    private readonly CheckBox full = new() { Text = "Entire message", AutoSize = true };
+    private readonly CheckBox trim = new() { Text = "Trim spaces/tabs", AutoSize = true };
     private readonly NumericUpDown timeout = new() { Minimum = 10, Maximum = 2000, Value = 250, Increment = 50, Width = 65 };
     private readonly DataGridView grid = new()
     {
@@ -69,9 +69,9 @@ internal sealed partial class MainForm : Form
         Controls.Add(layout);
         layout.Controls.Add(CreateToolbar(), 0, 0);
 
-        layout.Controls.Add(new Label { Text = "Message — tokeny mají vlastní barvy; legenda v Debug tabulce, vybraný záchyt modře", Dock = DockStyle.Fill }, 0, 1);
+        layout.Controls.Add(new Label { Text = "Message — tokens have distinct colors; see the Debug table legend; selected captures are blue", Dock = DockStyle.Fill }, 0, 1);
         layout.Controls.Add(message, 0, 2);
-        layout.Controls.Add(new Label { Text = @"Regex — kliknutím do skupiny zvýrazníte její záchyty v Message (i pohybem kurzoru klávesnicí)", Dock = DockStyle.Fill }, 0, 3);
+        layout.Controls.Add(new Label { Text = @"Regex — click inside a group to highlight its captures in Message (or move the cursor with the keyboard)", Dock = DockStyle.Fill }, 0, 3);
         layout.Controls.Add(pattern, 0, 4);
         var options = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         layout.RowStyles[5].SizeType = SizeType.AutoSize;
@@ -81,14 +81,14 @@ internal sealed partial class MainForm : Form
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         layout.RowStyles[6].SizeType = SizeType.AutoSize;
         AddButton(actions, "Test / Debug (F5)", () => { tabs.SelectedIndex = 1; _ = AnalyzeAsync(); });
-        AddButton(actions, "Zastavit", Stop);
-        AddButton(actions, "◀ Předchozí záchyt", () => Step(-1));
-        AddButton(actions, "Další záchyt ▶", () => Step(1));
+        AddButton(actions, "Stop", Stop);
+        AddButton(actions, "◀ Previous capture", () => Step(-1));
+        AddButton(actions, "Next capture ▶", () => Step(1));
         layout.Controls.Add(actions, 0, 6);
         layout.Controls.Add(status, 0, 7);
-        var configTab = new TabPage("Konfigurace .properties");
+        var configTab = new TabPage("Configuration .properties");
         configTab.Controls.Add(source);
-        var debugTab = new TabPage("Debug regexu");
+        var debugTab = new TabPage("Regex debug");
         var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Horizontal };
         split.Panel1.Controls.Add(grid);
         report.ReadOnly = true;
@@ -96,7 +96,7 @@ internal sealed partial class MainForm : Form
         debugTab.Controls.Add(split);
         tabs.TabPages.AddRange([configTab, debugTab]);
         layout.Controls.Add(tabs, 0, 8);
-        foreach (string name in new[] { "Shoda", "Skupina", "Název / token", "Záchyt", "Úspěch", "Pozice (0-based)", "Délka", "Hodnota" })
+        foreach (string name in new[] { "Match", "Group", "Name / token", "Capture", "Success", "Position (0-based)", "Length", "Value" })
             grid.Columns.Add(name, name);
         grid.Columns[7].FillWeight = 240;
         foreach (DataGridViewColumn column in grid.Columns)
@@ -139,19 +139,19 @@ internal sealed partial class MainForm : Form
         ((UndoTextBox)pattern).ResetHistory();
         message.ResetHistory();
         Theme.Apply(this);
-        HelpUi.Describe(message, "regex", "Původní log pro test. Pastelové barvy rozlišují tokeny; modrá označuje vybranou skupinu či záchyt.");
-        HelpUi.Describe(pattern, "regex", "Dekódovaný regex: pište například \\d. Kliknutí do skupiny ukáže její text; dlouhý výraz se vizuálně zalamuje.");
-        HelpUi.Describe(source, "properties", "Celá konfigurace parseru. Zpětné lomítko se v properties zdvojuje. Použít v dialogu mění tento text; Uložit zapisuje na disk.");
-        HelpUi.Describe(report, "limits", "Výsledek diagnostiky: chyba regexu, omezení náhledu, soulad tokenů a náhled severity.");
-        HelpUi.Describe(grid, "regex", "Shody a záchyty regexu. Kliknutí na řádek zvýrazní jeho rozsah; hlavičky sloupců mají vlastní popisy.");
-        HelpUi.Describe(automatic, "regex", "Přepočítává náhled po pauze při psaní. Při vypnutí spusťte F5.");
-        HelpUi.Describe(ignoreCase, "regex", "Ignoruje velikost písmen pouze v náhledu (příznak i).");
-        HelpUi.Describe(multiline, "regex", "Příznak m: ^ a $ pracují s jednotlivými řádky. Nespojuje logové řádky.");
-        HelpUi.Describe(singleline, "regex", "Příznak s: tečka odpovídá i novému řádku.");
-        HelpUi.Describe(full, "regex", "Vyžaduje pokrytí celé zprávy; jinak náhled hledá i dílčí shody.");
-        HelpUi.Describe(trim, "regex", "V náhledu odstraní okrajové mezery a tabulátory. Pozice zůstanou vztažené k původnímu textu.");
-        HelpUi.Describe(timeout, "limits", "Limit jednotlivé regex operace v milisekundách. Při timeoutu zjednodušte výraz nebo upravte limit.");
-        Controls.Add(Theme.Header("PARSER STUDIO", "ArcSight FlexConnector  /  Editor konfigurace a regex debugger"));
+        HelpUi.Describe(message, "regex", "Original log for testing. Pastel colors distinguish tokens; blue marks the selected group or capture.");
+        HelpUi.Describe(pattern, "regex", "Decoded regex: enter, for example, \\d. Click inside a group to see its text; long expressions wrap visually.");
+        HelpUi.Describe(source, "properties", "The full parser configuration. Backslashes are doubled in properties. Apply changes this text; Save writes it to disk.");
+        HelpUi.Describe(report, "limits", "Diagnostics: regex errors, preview limits, token consistency and severity preview.");
+        HelpUi.Describe(grid, "regex", "Regex matches and captures. Click a row to highlight its range; column headers have their own descriptions.");
+        HelpUi.Describe(automatic, "regex", "Update the preview after a typing pause. When disabled, press F5.");
+        HelpUi.Describe(ignoreCase, "regex", "Ignore letter case in the preview only (flag i).");
+        HelpUi.Describe(multiline, "regex", "Flag m: ^ and $ work with individual lines. This does not combine log lines.");
+        HelpUi.Describe(singleline, "regex", "Flag s: the dot also matches a newline.");
+        HelpUi.Describe(full, "regex", "Require the entire message to match; otherwise the preview also finds partial matches.");
+        HelpUi.Describe(trim, "regex", "Remove leading and trailing spaces and tabs in the preview. Positions remain relative to the original text.");
+        HelpUi.Describe(timeout, "limits", "Time limit per regex operation in milliseconds. On timeout, simplify the expression or adjust the limit.");
+        Controls.Add(Theme.Header("PARSER STUDIO", "ArcSight FlexConnector  /  Configuration editor and regex debugger"));
         Shown += (_, _) => { split.SplitterDistance = Math.Max(100, split.Height * 2 / 3); Schedule(); };
     }
 

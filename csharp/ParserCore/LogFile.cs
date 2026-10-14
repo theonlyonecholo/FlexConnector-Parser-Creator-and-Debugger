@@ -9,7 +9,7 @@ public static class LogFile
     public static IReadOnlyList<LogEntry> Read(string path, bool latin1 = false, CancellationToken cancellation = default)
     {
         if (new FileInfo(path).Length > 32 * 1024 * 1024)
-            throw new FormatException("Limit souboru pro náhled je 32 MB.");
+            throw new FormatException("The preview file size limit is 32 MB.");
         var entries = new List<LogEntry>();
         using var reader = new StreamReader(path, latin1 ? Encoding.Latin1 : new UTF8Encoding(false, true), true);
         string? line;
@@ -19,7 +19,7 @@ public static class LogFile
             cancellation.ThrowIfCancellationRequested();
             number++;
             if (number > 50000)
-                throw new FormatException("Limit náhledu je 50 000 řádků.");
+                throw new FormatException("The preview limit is 50,000 lines.");
             entries.Add(new(number, line)); // Includes blank lines; line numbers remain faithful to the file.
         }
         return entries;

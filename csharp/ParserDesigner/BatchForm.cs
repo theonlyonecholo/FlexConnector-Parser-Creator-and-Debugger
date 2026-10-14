@@ -7,8 +7,8 @@ internal sealed class BatchForm : Form
 {
     private ParserEvaluator evaluator;
     public string ConfigurationSource => evaluator.Source;
-    private readonly Button editSubmessages = new() { Text = "Upravit submessage…", AutoSize = true };
-    private readonly Button editParser = new() { Text = "Upravit parser…", AutoSize = true };
+    private readonly Button editSubmessages = new() { Text = "Edit submessage…", AutoSize = true };
+    private readonly Button editParser = new() { Text = "Edit parser…", AutoSize = true };
     private readonly List<LogEntry> logs = [];
     private readonly List<int> visible = [];
     private ParserResult?[] results = [];
@@ -16,11 +16,11 @@ internal sealed class BatchForm : Form
     private readonly DataGridView captures = Grid();
     private readonly RichTextBox message = new() { Dock = DockStyle.Fill, ReadOnly = true, DetectUrls = false, WordWrap = false, Font = new Font("Consolas", 11) };
     private readonly TextBox description = new() { Dock = DockStyle.Fill, Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical };
-    private readonly Label summary = new() { Dock = DockStyle.Fill, Padding = new Padding(10), Text = "Otevřete soubor logů. Jeden řádek = jedna událost, včetně prázdných řádků." };
+    private readonly Label summary = new() { Dock = DockStyle.Fill, Padding = new Padding(10), Text = "Open a log file. One line = one event, including empty lines." };
     private readonly ComboBox filter = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 175 };
     private readonly ComboBox encoding = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 100 };
-    private readonly Button open = new() { Text = "Otevřít logy…", AutoSize = true };
-    private readonly Button run = new() { Text = "Otestovat vše", AutoSize = true };
+    private readonly Button open = new() { Text = "Open logs…", AutoSize = true };
+    private readonly Button run = new() { Text = "Test all", AutoSize = true };
     private readonly ProgressBar progress = new() { Width = 150, Height = 26 };
     private readonly System.Windows.Forms.Timer selectionTimer = new() { Interval = 120 };
     private readonly SemaphoreSlim detailWorker = new(1);
@@ -44,7 +44,7 @@ internal sealed class BatchForm : Form
     public BatchForm(string source, string parserName)
     {
         evaluator = new(source);
-        Text = "Test souboru logů — " + parserName;
+        Text = "Log file test — " + parserName;
         Size = new Size(1440, 900);
         MinimumSize = new Size(1100, 720);
         StartPosition = FormStartPosition.CenterParent;
@@ -56,10 +56,10 @@ internal sealed class BatchForm : Form
         var tools = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = true, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink };
         encoding.Items.AddRange(["UTF-8", "Latin-1"]);
         encoding.SelectedIndex = 0;
-        filter.Items.AddRange(["Všechny logy", "Pouze shody", "Pouze problémy", "Neotestované"]);
+        filter.Items.AddRange(["All logs", "Matches only", "Problems only", "Untested"]);
         filter.SelectedIndex = 0;
         tools.Controls.AddRange([open, encoding, run]);
-        var stop = new Button { Text = "Zastavit", AutoSize = true };
+        var stop = new Button { Text = "Stop", AutoSize = true };
         stop.Click += (_, _) => batchCancellation?.Cancel();
         var previous = new Button { Text = "← Log", AutoSize = true };
         var next = new Button { Text = "Log →", AutoSize = true };
@@ -67,14 +67,14 @@ internal sealed class BatchForm : Form
         next.Click += (_, _) => Navigate(1);
         tools.Controls.AddRange([stop, previous, next, filter, progress]);
         tools.SetFlowBreak(progress, true);
-        tools.Controls.AddRange([editSubmessages, editParser, new Label { Text = "Změny se vrátí do hlavní konfigurace; na disk je uložíte tlačítkem Uložit.", AutoSize = true, Padding = new Padding(6) }]);
+        tools.Controls.AddRange([editSubmessages, editParser, new Label { Text = "Changes return to the main configuration; use Save to write them to disk.", AutoSize = true, Padding = new Padding(6) }]);
         editSubmessages.Click += async (_, _) => await EditSubmessagesAsync();
         editParser.Click += async (_, _) => await EditParserAsync();
         root.Controls.Add(tools, 0, 0);
         root.Controls.Add(summary, 0, 1);
         var split = new SplitContainer { Dock = DockStyle.Fill, SplitterWidth = 8 };
         list.VirtualMode = true;
-        foreach (string column in new[] { "Řádek", "Výsledek", "Message ID", "Submessage / pattern", "Log" })
+        foreach (string column in new[] { "Line", "Result", "Message ID", "Submessage / pattern", "Log" })
             list.Columns.Add(column, column);
         list.Columns[0].FillWeight = 40;
         list.Columns[3].FillWeight = 150;
@@ -112,9 +112,9 @@ internal sealed class BatchForm : Form
         detail.RowStyles.Add(new(SizeType.Percent, 35));
         detail.RowStyles.Add(new(SizeType.Percent, 30));
         detail.ColumnStyles.Add(new(SizeType.Percent, 100));
-        detail.Controls.Add(new Label { Text = "DETAIL LOGU  ·  barvy tokenů a polí odpovídají tabulce níže", Dock = DockStyle.Fill }, 0, 0);
+        detail.Controls.Add(new Label { Text = "LOG DETAILS  ·  token and field colors match the table below", Dock = DockStyle.Fill }, 0, 0);
         detail.Controls.Add(message, 0, 1);
-        foreach (string column in new[] { "Fáze", "Token / pole", "Pozice", "Délka", "Hodnota" })
+        foreach (string column in new[] { "Stage", "Token / field", "Position", "Length", "Value" })
             captures.Columns.Add(column, column);
         foreach (DataGridViewColumn column in captures.Columns)
             column.SortMode = DataGridViewColumnSortMode.NotSortable;
@@ -125,14 +125,14 @@ internal sealed class BatchForm : Form
         root.Controls.Add(split, 0, 2);
         Controls.Add(root);
         Theme.Apply(this);
-        HelpUi.Describe(encoding, "batch", "Kódování souboru logů při příštím načtení. Zvolte UTF-8 nebo Latin-1 podle zdroje.");
-        HelpUi.Describe(filter, "batch", "Zobrazí všechny logy, pouze shody, problémy nebo neotestované; šipky procházejí tento výběr.");
-        HelpUi.Describe(list, "batch", "Jeden řádek je jeden log. Kliknutím zobrazíte záchyty, message ID a použitý submessage/pattern.");
-        HelpUi.Describe(message, "batch", "Původní vybraný log; barvy odpovídají tokenům a polím v tabulce.");
-        HelpUi.Describe(captures, "batch", "Rozsahy zachycených tokenů a polí. Klikněte na řádek pro zvýraznění.");
-        HelpUi.Describe(description, "batch", "Důvod výsledku a pořadí vyzkoušených patternů. Shoda regexu neověřuje ArcSight transformace.");
-        HelpUi.Describe(progress, "batch", "Počet dokončených testů; po zastavení zůstávají ostatní řádky neotestované.");
-        Controls.Add(Theme.Header("LOG WORKBENCH", parserName + "  ·  Procházejte logy, upravujte parser a porovnejte výsledky"));
+        HelpUi.Describe(encoding, "batch", "Log file encoding for the next load. Choose UTF-8 or Latin-1 to match the source.");
+        HelpUi.Describe(filter, "batch", "Show all logs, matches, problems or untested entries; the arrows navigate this selection.");
+        HelpUi.Describe(list, "batch", "Each row is one log. Click to see captures, the message ID and the selected submessage/pattern.");
+        HelpUi.Describe(message, "batch", "The original selected log; colors match tokens and fields in the table.");
+        HelpUi.Describe(captures, "batch", "Captured token and field ranges. Click a row to highlight it.");
+        HelpUi.Describe(description, "batch", "The result explanation and the order of attempted patterns. A regex match does not validate ArcSight transformations.");
+        HelpUi.Describe(progress, "batch", "Number of completed tests; stopping leaves remaining rows untested.");
+        Controls.Add(Theme.Header("LOG WORKBENCH", parserName + "  ·  Browse logs, edit the parser and compare results"));
         open.Click += async (_, _) => await LoadAsync();
         run.Click += async (_, _) => await RunAsync();
         filter.SelectedIndexChanged += (_, _) => RefreshList();
@@ -142,16 +142,16 @@ internal sealed class BatchForm : Form
     }
     private static string StateLabel(ParserResult? r) => r?.State switch
     {
-        ParseState.Matched => "Shoda",
-        ParseState.MainMismatch => "Hlavní regex: neshoda",
-        ParseState.NoSubmessage => "Chybí submessage",
-        ParseState.SubmessageMismatch => "Submessage: neshoda",
-        ParseState.Error => "Chyba / timeout",
-        _ => "Neotestováno"
+        ParseState.Matched => "Match",
+        ParseState.MainMismatch => "Main regex: mismatch",
+        ParseState.NoSubmessage => "Missing submessage",
+        ParseState.SubmessageMismatch => "Submessage: mismatch",
+        ParseState.Error => "Error / timeout",
+        _ => "Not tested"
     };
     private async Task LoadAsync()
     {
-        using var dialog = new OpenFileDialog { Filter = "Log / text|*.log;*.txt|Všechny soubory|*.*" };
+        using var dialog = new OpenFileDialog { Filter = "Log / text|*.log;*.txt|All files|*.*" };
         if (dialog.ShowDialog(this) != DialogResult.OK)
             return;
         open.Enabled = run.Enabled = editSubmessages.Enabled = editParser.Enabled = false;
@@ -167,14 +167,14 @@ internal sealed class BatchForm : Form
             logs.Clear();
             logs.AddRange(loaded);
             results = new ParserResult?[logs.Count];
-            Text = "Test logů — " + Path.GetFileName(dialog.FileName);
+            Text = "Log test — " + Path.GetFileName(dialog.FileName);
             RefreshList();
             await RunAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FormatException or System.Text.DecoderFallbackException)
         {
             if (!closing)
-                MessageBox.Show(this, ex.Message, "Načtení logů");
+                MessageBox.Show(this, ex.Message, "Load logs");
         }
         finally { if (!closing) open.Enabled = run.Enabled = editSubmessages.Enabled = editParser.Enabled = true; }
     }
@@ -192,7 +192,7 @@ internal sealed class BatchForm : Form
         RefreshList(preferred);
         progress.Maximum = logs.Count;
         progress.Value = 0;
-        var updates = new Progress<int>(n => { if (!closing && !run.Enabled) { progress.Value = n; summary.Text = $"Testuji {n:N0} / {logs.Count:N0} logů…"; } });
+        var updates = new Progress<int>(n => { if (!closing && !run.Enabled) { progress.Value = n; summary.Text = $"Testing {n:N0} / {logs.Count:N0} logs…"; } });
         try
         {
             var output = await Task.Run(() =>
@@ -224,8 +224,8 @@ internal sealed class BatchForm : Form
     private void UpdateSummary()
     {
         int tested = results.Count(r => r is not null), matched = results.Count(r => r?.Success == true);
-        summary.Text = $"{logs.Count:N0} LOGŮ    ·    {matched:N0} SHOD    ·    {tested - matched:N0} PROBLÉMŮ    ·    {logs.Count - tested:N0} NEOTESTOVÁNO\n" +
-            "Jeden řádek = jedna událost. Výsledky používají hlavní regex a submessages z konfigurace, engine .NET.";
+        summary.Text = $"{logs.Count:N0} LOGS    ·    {matched:N0} MATCHES    ·    {tested - matched:N0} PROBLEMS    ·    {logs.Count - tested:N0} UNTESTED\n" +
+            "One line = one event. Results use the main regex and submessages from the configuration, with the .NET engine.";
     }
     private int SelectedLogIndex() => list.CurrentCell is { RowIndex: >= 0 } cell && cell.RowIndex < visible.Count ? visible[cell.RowIndex] : -1;
     private void RefreshList(int preferred = -1)
@@ -289,7 +289,7 @@ internal sealed class BatchForm : Form
         message.Text = logs[index].Text;
         captures.Rows.Clear();
         selectedResult = null;
-        description.Text = "Vyhodnocuji vybraný log…";
+        description.Text = "Evaluating the selected log…";
         try
         {
             await detailWorker.WaitAsync(token);
@@ -308,13 +308,13 @@ internal sealed class BatchForm : Form
             {
                 int n = captures.Rows.Add(c.Stage, c.Name, c.Index, c.Length, c.Value);
                 captures.Rows[n].Tag = c;
-                if (c.Stage == "Token" || (c.Stage == "Submessage" && c.Name != "Celá shoda"))
+                if (c.Stage == "Token" || (c.Stage == "Submessage" && c.Name != "Entire match"))
                     captures.Rows[n].Cells[1].Style.BackColor = CaptureColor(c);
             }
             captures.ClearSelection();
-            description.Text = $"Řádek {logs[index].LineNumber} — {StateLabel(detail)}\r\n{detail.Description}\r\nMessage ID: {detail.MessageId}\r\nVybraná / dostupná cesta: {detail.Route}\r\n\r\n" +
-                string.Join("\r\n", detail.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "SHODA" : "neshoda")}")) +
-                "\r\n\r\nPole submessage jsou popisky skupin; ArcSight funkce a extra processors se neprovádějí.";
+            description.Text = $"Line {logs[index].LineNumber} — {StateLabel(detail)}\r\n{detail.Description}\r\nMessage ID: {detail.MessageId}\r\nSelected / available route: {detail.Route}\r\n\r\n" +
+                string.Join("\r\n", detail.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}")) +
+                "\r\n\r\nSubmessage fields are group labels; ArcSight functions and extra processors are not executed.";
             PaintSelection();
         }
         catch (OperationCanceledException) { }
@@ -362,11 +362,11 @@ internal sealed class BatchForm : Form
         message.SelectionBackColor = Color.White;
         if (selectedResult is not null)
         {
-            foreach (var c in selectedResult.Captures.Where(c => c.Name == "Celá shoda"))
+            foreach (var c in selectedResult.Captures.Where(c => c.Name == "Entire match"))
                 ColorSpan(c, c.Stage == "Submessage" ? Color.FromArgb(187, 247, 208) : Color.FromArgb(254, 240, 138));
             foreach (var c in selectedResult.Captures.Where(c => c.Stage == "Token").OrderByDescending(c => c.Length))
                 ColorSpan(c, CaptureColor(c));
-            foreach (var c in selectedResult.Captures.Where(c => c.Stage == "Submessage" && c.Name != "Celá shoda").OrderByDescending(c => c.Length))
+            foreach (var c in selectedResult.Captures.Where(c => c.Stage == "Submessage" && c.Name != "Entire match").OrderByDescending(c => c.Length))
                 ColorSpan(c, CaptureColor(c));
             if (captures.SelectedRows.Count > 0 && captures.SelectedRows[0].Tag is ParserCapture active)
                 ColorSpan(active, Color.FromArgb(147, 197, 253));
@@ -377,7 +377,7 @@ internal sealed class BatchForm : Form
     {
         if (selectedResult is null)
             return Color.White;
-        var keys = selectedResult.Captures.Where(c => c.Stage == "Token" || (c.Stage == "Submessage" && c.Name != "Celá shoda"))
+        var keys = selectedResult.Captures.Where(c => c.Stage == "Token" || (c.Stage == "Submessage" && c.Name != "Entire match"))
             .Select(c => (c.Stage, c.Name)).Distinct().ToList();
         return TokenColors.For(keys.IndexOf((capture.Stage, capture.Name)));
     }

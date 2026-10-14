@@ -61,7 +61,7 @@ internal sealed class AdvancedDialog : Form
             Dock = DockStyle.Bottom,
             Height = 100,
             Padding = new Padding(12),
-            Text = "Hodnoty: OPEN,CLOSE nebo 400..599. Prázdné pravidlo se odstraní.\nZadávejte dekódované hodnoty. Pro náhled severity použijte v event.deviceSeverity název tokenu.\nPřekrývající se pravidla se v náhledu označí jako nejednoznačná."
+            Text = "Values: OPEN,CLOSE or 400..599. Empty rules are removed.\nEnter decoded values. For severity preview, use a token name in event.deviceSeverity.\nOverlapping rules are marked as ambiguous in the preview."
         };
         severityPage.Controls.Add(form);
         severityPage.Controls.Add(help);
@@ -71,7 +71,7 @@ internal sealed class AdvancedDialog : Form
         type.Items.AddRange(AdvancedConfiguration.ProcessorTypes);
         type.SelectedItem = "regex";
         tools.Controls.Add(type);
-        var add = new Button { Text = "Přidat šablonu", AutoSize = true };
+        var add = new Button { Text = "Add template", AutoSize = true };
         add.Click += (_, _) => Guard(() =>
         {
             int index = AdvancedConfiguration.ValidateProcessors(new(processors.Text));
@@ -79,28 +79,28 @@ internal sealed class AdvancedDialog : Form
         });
         tools.Controls.Add(add);
         tools.SetFlowBreak(add, true);
-        tools.Controls.Add(new Label { AutoSize = true, Text = "Indexy 0,1,… bez mezer. Počet se dopočítá. Navázané parsery se lokálně nespouštějí." });
+        tools.Controls.Add(new Label { AutoSize = true, Text = "Indices 0,1,... without gaps. The count is calculated automatically. Linked parsers are not executed locally." });
         extraPage.Controls.Add(processors);
         extraPage.Controls.Add(tools);
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 48, Padding = new Padding(5) };
-        var apply = new Button { Text = "Použít v konfiguraci", AutoSize = true };
+        var apply = new Button { Text = "Apply to configuration", AutoSize = true };
         apply.Click += (_, _) => Guard(() =>
         {
             ResultSource = AdvancedConfiguration.Apply(original, deviceSeverity.Text,
                 rules.ToDictionary(kv => kv.Key, kv => kv.Value.Text), processors.Text);
             DialogResult = DialogResult.OK;
         });
-        var cancel = new Button { Text = "Zrušit", DialogResult = DialogResult.Cancel, AutoSize = true };
+        var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true };
         bottom.Controls.AddRange([apply, cancel]);
         CancelButton = cancel;
         Controls.Add(tabs);
         Controls.Add(bottom);
         Theme.Apply(this);
-        HelpUi.Describe(deviceSeverity, "severity", "Zdroj původní závažnosti: přímý název tokenu, například Status. ArcSight výrazy náhled nevykonává.");
+        HelpUi.Describe(deviceSeverity, "severity", "Original severity source: a direct token name, such as Status. The preview does not execute ArcSight expressions.");
         foreach (var rule in rules)
-            HelpUi.Describe(rule.Value, "severity", "Hodnoty pro " + rule.Key + ": seznam OPEN,CLOSE nebo rozsah 400..599 včetně hranic. Prázdné pravidlo se odstraní.");
-        HelpUi.Describe(type, "processors", "Typ navazujícího parseru nebo mapování, pro které tlačítko Přidat šablonu vytvoří blok konfigurace.");
-        HelpUi.Describe(processors, "processors", "Bloky extraprocessor[n].*: type, filename, vstupní field a další parametry. F1 vysvětluje každý parametr. Soubory se lokálně nespouštějí.");
+            HelpUi.Describe(rule.Value, "severity", "Values for " + rule.Key + ": a list such as OPEN,CLOSE or an inclusive range such as 400..599. Empty rules are removed.");
+        HelpUi.Describe(type, "processors", "The downstream parser or mapping type used by Add template to create a configuration block.");
+        HelpUi.Describe(processors, "processors", "extraprocessor[n].* blocks: type, filename, input field and other parameters. F1 explains each parameter. Files are not executed locally.");
         deviceSeverity.ResetHistory();
         processors.ResetHistory();
     }
@@ -113,7 +113,7 @@ internal sealed class AdvancedDialog : Form
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException)
         {
-            MessageBox.Show(this, ex.Message, "Konfigurace", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, ex.Message, "Configuration", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 }

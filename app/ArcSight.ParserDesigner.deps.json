@@ -6,31 +6,31 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v10.0": {
-      "ArcSight.ParserDesigner/1.0.0": {
+      "ArcSight.ParserDesigner/1.1.0": {
         "dependencies": {
-          "ParserCore": "1.0.0"
+          "ParserCore": "1.1.0"
         },
         "runtime": {
           "ArcSight.ParserDesigner.dll": {}
         }
       },
-      "ParserCore/1.0.0": {
+      "ParserCore/1.1.0": {
         "runtime": {
           "ParserCore.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
+            "assemblyVersion": "1.1.0.0",
+            "fileVersion": "1.1.0.0"
           }
         }
       }
     }
   },
   "libraries": {
-    "ArcSight.ParserDesigner/1.0.0": {
+    "ArcSight.ParserDesigner/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
     },
-    "ParserCore/1.0.0": {
+    "ParserCore/1.1.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

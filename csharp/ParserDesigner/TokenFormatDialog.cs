@@ -9,7 +9,7 @@ internal sealed class TokenFormatDialog : Form
     public string ResultFormat => format.Text;
     public TokenFormatDialog(string type, string current)
     {
-        Text = "Formát tokenu — " + type;
+        Text = "Token format — " + type;
         Size = new Size(820, 650);
         MinimumSize = new Size(680, 560);
         StartPosition = FormStartPosition.CenterParent;
@@ -21,16 +21,16 @@ internal sealed class TokenFormatDialog : Form
         root.RowStyles.Add(new(SizeType.Absolute, 48));
         root.Controls.Add(new Label { Text = TokenFormats.Help(type), Dock = DockStyle.Fill }, 0, 0);
         var presets = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList, DropDownWidth = 650 };
-        presets.Items.Add("Vyberte šablonu…");
+        presets.Items.Add("Select a template…");
         presets.Items.AddRange(TokenFormats.Suggestions(type).Cast<object>().ToArray());
         presets.SelectedIndex = 0;
         presets.SelectedIndexChanged += (_, _) => { if (presets.SelectedIndex > 0) format.Text = presets.Text; };
         root.Controls.Add(presets, 0, 1);
-        root.Controls.Add(new Label { Text = "Formát — lze libovolně upravovat; zapisujte dekódovanou hodnotu", Dock = DockStyle.Fill }, 0, 2);
+        root.Controls.Add(new Label { Text = "Format — freely editable; enter the decoded value", Dock = DockStyle.Fill }, 0, 2);
         format.Text = current;
         format.ResetHistory();
         root.Controls.Add(format, 0, 3);
-        root.Controls.Add(new Label { Text = TokenFormats.IsDateTime(type) ? "Kliknutím vložte symbol na pozici kurzoru:" : "Zdroj: FlexConn DevGuide, str. 196–197. Návrh neprovádí převod hodnot.", Dock = DockStyle.Fill }, 0, 4);
+        root.Controls.Add(new Label { Text = TokenFormats.IsDateTime(type) ? "Click to insert a symbol at the cursor:" : "Source: FlexConn DevGuide, pp. 196–197. The builder does not convert values.", Dock = DockStyle.Fill }, 0, 4);
         var symbols = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true };
         if (TokenFormats.IsDateTime(type))
             foreach (var item in TokenFormats.Symbols)
@@ -41,16 +41,16 @@ internal sealed class TokenFormatDialog : Form
             }
         root.Controls.Add(symbols, 0, 5);
         var actions = new FlowLayoutPanel { Dock = DockStyle.Fill };
-        var apply = new Button { Text = "Použít formát", AutoSize = true, DialogResult = DialogResult.OK };
-        var clear = new Button { Text = "Bez formátu", AutoSize = true };
+        var apply = new Button { Text = "Apply format", AutoSize = true, DialogResult = DialogResult.OK };
+        var clear = new Button { Text = "Clear format", AutoSize = true };
         clear.Click += (_, _) => format.Clear();
-        var cancel = new Button { Text = "Zrušit", AutoSize = true, DialogResult = DialogResult.Cancel };
+        var cancel = new Button { Text = "Cancel", AutoSize = true, DialogResult = DialogResult.Cancel };
         actions.Controls.AddRange([apply, clear, cancel]);
         root.Controls.Add(actions, 0, 6);
         Controls.Add(root);
         CancelButton = cancel;
         Theme.Apply(this);
-        HelpUi.Describe(format, "formats", "Výsledný dekódovaný formát tokenu. Šablonu lze upravit; tlačítka symbolů vkládají na kurzor. Ctrl+Z vrátí úpravu.");
-        HelpUi.Describe(presets, "formats", "Výběr šablony nahradí pracovní formát. Před použitím přizpůsobte skutečnému zápisu hodnoty v logu.");
+        HelpUi.Describe(format, "formats", "The resulting decoded token format. Edit the template; symbol buttons insert at the cursor. Ctrl+Z undoes an edit.");
+        HelpUi.Describe(presets, "formats", "Selecting a template replaces the working format. Adjust it to the actual log value before applying.");
     }
 }

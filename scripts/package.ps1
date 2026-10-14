@@ -26,11 +26,17 @@ foreach ($directory in @('csharp', 'docs', 'examples', 'scripts')) {
 }
 # Copy only repository metadata and the optional local reference document.
 foreach ($file in Get-ChildItem -LiteralPath $repositoryRoot -File -Force) {
-    if ($file.Name -in @('.gitignore', '.gitattributes', '.editorconfig', 'README.md', 'CONTRIBUTING.md', 'FlexConn_DevGuide.pdf')) {
+    if ($file.Name -in @('.gitignore', '.gitattributes', '.editorconfig', 'README.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'FlexConn_DevGuide.pdf')) {
         Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $Destination $file.Name)
     }
 }
 $appDirectory = Join-Path $Destination 'app'
+# The publication copy contains only C#; legacy workspace ignore rules are unnecessary.
+$ignorePath = Join-Path $Destination '.gitignore'
+$ignoreLines = Get-Content -LiteralPath $ignorePath | Where-Object { $_ -notin @('__history/', '__recovery/', 'Win32/', 'Win64/', '*.dproj.local', '*.identcache', '*.dcu') }
+[IO.File]::WriteAllLines($ignorePath, $ignoreLines)
+$attributesPath = Join-Path $Destination '.gitattributes'
+[IO.File]::WriteAllLines($attributesPath, @(Get-Content -LiteralPath $attributesPath | Where-Object { $_ -ne '*.res binary' }))
 New-Item -ItemType Directory -Path $appDirectory | Out-Null
 foreach ($file in Get-ChildItem -LiteralPath $applicationOutput -File) {
     if ($file.Extension -in @('.exe', '.dll', '.json')) { Copy-Item -LiteralPath $file.FullName -Destination $appDirectory }
