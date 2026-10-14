@@ -180,12 +180,12 @@ Test("Regex: cancellation and bounded match output", () =>
 });
 Test("Repository examples: parsing, severity, file round trip", () =>
 {
-    string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
-    foreach (string file in Directory.GetFiles(Path.Combine(root, "examples"), "*.properties"))
+    string examples = Path.Combine(AppContext.BaseDirectory, "examples");
+    foreach (string file in Directory.GetFiles(examples, "*.properties"))
     {
         var d = PropertiesDocument.Load(file);
         string logFile = file.Contains("submessages") ? "submessages.log" : file.Contains("severity-processors") ? "severity-processors.log" : "demo.log";
-        string log = File.ReadLines(Path.Combine(root, "examples", logFile)).First();
+        string log = File.ReadLines(Path.Combine(examples, logFile)).First();
         var r = RegexDebugger.Analyze(d.Get("regex"), log, fullEvent: true);
         Check(r.Error is null && r.Matches.Count == 1, file);
         if (logFile.StartsWith("severity"))

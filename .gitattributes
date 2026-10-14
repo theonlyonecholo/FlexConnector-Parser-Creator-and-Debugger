@@ -1,6 +1,7 @@
 * text=auto
 *.cs text eol=crlf
 *.ps1 text eol=crlf
+*.sh text eol=lf
 *.md text eol=lf
 *.json text eol=lf
 *.png binary
@@ -8,3 +9,4 @@
 *.exe binary
 *.dll binary
 *.pdb binary
+*.res binary

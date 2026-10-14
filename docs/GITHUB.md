@@ -1,5 +1,11 @@
 # Publishing this project on GitHub
 
+For version 2.0 use `scripts/verify-cross-platform.ps1` (or the Bash equivalent)
+and `scripts/package-cross-platform.ps1`. The new package has `app/linux-x64/`
+and `app/win-x64/`, each with its own runtime, notices and checksums. Attach separate
+platform archives to a Release. The older `scripts/package.ps1` builds the WinForms
+distribution described below. See [cross-platform packaging](CROSS_PLATFORM.md).
+
 The prepared directory is an independent repository root: source, documentation,
 examples and scripts live together; `app/` contains the compiled application.
 The `app/` binaries are intentionally not ignored, so they can be synchronized

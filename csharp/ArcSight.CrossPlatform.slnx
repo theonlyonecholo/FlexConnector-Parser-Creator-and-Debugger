@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ParserCore/ParserCore.csproj" />
+  <Project Path="ParserCore.Tests/ParserCore.Tests.csproj" />
+  <Project Path="ParserDesigner.CrossPlatform/ParserDesigner.CrossPlatform.csproj" />
+  <Project Path="ParserDesigner.CrossPlatform.Tests/ParserDesigner.CrossPlatform.Tests.csproj" />
+</Solution>

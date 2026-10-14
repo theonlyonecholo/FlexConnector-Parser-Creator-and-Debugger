@@ -1,4 +1,6 @@
-# Compiled Windows application
+# Original WinForms Windows application
+
+For the new Avalonia 2.0 edition, see the [cross-platform guide](CROSS_PLATFORM.md).
 
 Version **1.1.0** includes an English interface, tooltips and offline help.
 

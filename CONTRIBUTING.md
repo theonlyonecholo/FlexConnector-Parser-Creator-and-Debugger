@@ -4,6 +4,11 @@ Start with [the architecture](docs/ARCHITECTURE.md) and
 [development guide](docs/DEVELOPMENT.md). The maintained application lives in
 `csharp/`; the publication package contains only this solution and supporting files.
 
+The native cross-platform solution is `csharp/ArcSight.CrossPlatform.slnx`.
+Use `scripts/verify-cross-platform.ps1` or `bash scripts/verify-cross-platform.sh`
+for Avalonia changes, and see [platform setup](docs/CROSS_PLATFORM.md).
+WinForms-specific work still uses the original verification script below.
+
 ## Code conventions
 
 - Use English identifiers, comments, documentation, interface text and help.

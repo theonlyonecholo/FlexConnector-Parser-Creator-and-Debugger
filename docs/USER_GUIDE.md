@@ -1,7 +1,8 @@
-# User guide — ArcSight Parser Designer 1.1.0
+# User guide — ArcSight Parser Designer
 
-The C# application runs on Windows with .NET 10 Windows Desktop Runtime.
-Start `app/ArcSight.ParserDesigner.exe` from the prepared distribution.
+For version 2.0 platform setup and toolbar differences, see the [cross-platform guide](CROSS_PLATFORM.md).
+The original WinForms edition runs on Windows with .NET 10 Windows Desktop Runtime.
+The new Avalonia edition also runs on Linux; its prepared packages include the runtime.
 All application text and offline help are English. Native Windows dialogs use the system language.
 
 Hover over controls for hints; press **F1** for contextual, searchable offline help.

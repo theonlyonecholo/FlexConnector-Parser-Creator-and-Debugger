@@ -2,6 +2,12 @@
 
 ## Project boundaries
 
+Version 2.0 adds `ParserDesigner.CrossPlatform` (Avalonia / .NET 10) as a second
+desktop frontend. It shares `ParserCore` and the offline help catalog with the
+Windows edition. See [the cross-platform code map](CROSS_PLATFORM.md#code-map)
+for its windows, tests, packaging and asynchronous lifecycle. The WinForms-specific
+sections below still describe the original frontend.
+
 `ParserCore` targets .NET 10 and has no UI dependency. It parses properties,
 compiles regexes, evaluates previews, and builds edited configuration strings.
 `ParserDesigner` targets Windows and references `ParserCore`; it owns forms,

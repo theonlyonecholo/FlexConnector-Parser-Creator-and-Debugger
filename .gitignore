@@ -1,4 +1,5 @@
 .dotnet-home/
+.nuget-packages/
 **/bin/
 **/obj/
 csharp/.vs/
