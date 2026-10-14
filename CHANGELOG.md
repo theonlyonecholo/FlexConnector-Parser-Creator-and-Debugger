@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.1 — 2026-10-14
+
+- Added visible borders and inner padding to message, regex and configuration editors.
+- Aligned text inputs, type selectors and buttons across native platforms.
+- Kept token format builders on the same row and allocated more width to formats.
+- Removed unnecessary input minimum widths that could overflow narrow grid columns.
+- Widened the regex timeout input to prevent clipped values on Linux.
+- Added native regression checks for wrapped regexes, compact viewports and token alignment.
+- Validated the UI on Windows and Ubuntu 26.04 LTS under WSLg.
+
 ## 2.0.0 — 2026-10-14
 
 - Added a native Avalonia desktop edition with Windows, Linux and macOS targets.

@@ -24,6 +24,9 @@ internal static class Ui
         MinHeight = 60,
         Background = Brushes.White,
         Foreground = Brushes.Black,
+        BorderBrush = Brush.Parse("#9aa8ba"),
+        BorderThickness = new Thickness(1),
+        Padding = new Thickness(8),
         HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
         VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
         Document = NewDocument(text)
@@ -38,7 +41,7 @@ internal static class Ui
 
     public static TextBox Input(string text = "", string hint = "")
     {
-        var box = new TextBox { Text = text, MinWidth = 100, UndoLimit = 100, VerticalAlignment = VerticalAlignment.Center };
+        var box = new TextBox { Text = text, MinWidth = 0, MinHeight = 34, Padding = new Thickness(8, 5), UndoLimit = 100, VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center };
         Tip(box, hint);
         return box;
     }
@@ -46,7 +49,7 @@ internal static class Ui
     public static TextBlock Label(string text, double size = 13) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     public static Button Button(string text, Action action, string hint = "")
     {
-        var button = new Button { Content = text, Margin = new Thickness(0, 0, 6, 6) };
+        var button = new Button { Content = text, MinHeight = 34, VerticalAlignment = VerticalAlignment.Center };
         button.Click += (_, _) => action();
         Tip(button, hint);
         return button;
@@ -63,7 +66,11 @@ internal static class Ui
     {
         var panel = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6) };
         foreach (var control in controls)
+        {
+            control.VerticalAlignment = VerticalAlignment.Center;
+            control.Margin = new Thickness(0, 3, 8, 3);
             panel.Children.Add(control);
+        }
         return panel;
     }
     public static StackPanel Stack(params Control[] controls)

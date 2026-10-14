@@ -15,9 +15,10 @@ internal sealed class TokensDialog : Window
     public TokensDialog(string source, string pattern, string sample, RegexOptions options, bool entire, bool trim, int timeout)
     {
         Ui.Setup(this, "Tokens from regex", 1180, 760);
+        MinWidth = 960;
         var draft = TokenGenerator.Draft(source, pattern);
         var table = new StackPanel { Spacing = 6 };
-        table.Children.Add(Ui.Columns("110,*,150,*,2*", Ui.Label("Group → token"), Ui.Label("Name"), Ui.Label("Type"), Ui.Label("Format"), Ui.Label("Message snippet")));
+        table.Children.Add(Ui.Columns("100,*,150,2*,1.5*", Ui.Label("Group → token"), Ui.Label("Name"), Ui.Label("Type"), Ui.Label("Format"), Ui.Label("Message snippet")));
         foreach (var token in draft)
         {
             var name = Ui.Input(token.Name, "Unique token name referenced by event mappings. References are not renamed automatically.");
@@ -40,7 +41,7 @@ internal sealed class TokensDialog : Window
                 if (value is not null)
                     format.Text = value;
             }, "Choose a format template or insert Java date/time symbols.");
-            table.Children.Add(Ui.Columns("110,*,150,*,2*", Ui.Label($"{token.Index + 1} → [{token.Index}]"), name, type, Ui.Stack(format, builder), snippet));
+            table.Children.Add(Ui.Columns("100,*,150,2*,1.5*", Ui.Label($"{token.Index + 1} → [{token.Index}]"), name, type, Ui.Columns("*,Auto", format, builder), snippet));
         }
         var apply = Ui.AsyncButton("Apply to configuration", () => Ui.Guard(this, async () =>
         {

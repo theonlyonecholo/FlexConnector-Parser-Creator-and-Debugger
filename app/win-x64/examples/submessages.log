@@ -1,0 +1,6 @@
+id=LOGIN body=user=alice result=success
+id=LOGIN body=anonymous result=denied
+id=CONNECT body=host=server.example port=443
+id=LOGIN body=unrecognized login payload
+id=UNKNOWN body=unknown message handled by default
+This line does not match the main regex

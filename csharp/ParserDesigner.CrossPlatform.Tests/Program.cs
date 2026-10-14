@@ -80,6 +80,13 @@ internal static class Checks
         main.Width = main.MinWidth;
         main.Height = main.MinHeight;
         await Capture(main, "main-compact");
+        string originalPattern = main.Pattern.Text;
+        main.Pattern.Text = string.Concat(Enumerable.Repeat("([a-z]+) ", 80));
+        await Task.Delay(200);
+        Check(main.Pattern.TextArea.TextView.VisualLines.First().Height > 40, "long regex wraps into visible lines at compact width");
+        Check(main.Pattern.TextArea.Bounds.Width < main.Bounds.Width, "editor viewport stays inside the compact window");
+        await Capture(main, "long-regex");
+        main.Pattern.Text = originalPattern;
         main.Width = 1380;
         main.Height = 980;
 
@@ -127,6 +134,13 @@ internal static class Checks
         type.SelectedItem = "TimeStamp";
         Check(Controls<TextBox>(tokens).Any(t => t.Text == "yyyy-MM-dd HH:mm:ss"), "token type suggests a date/time format");
         await Capture(tokens, "tokens");
+        var nameBox = Controls<TextBox>(tokens).First();
+        var nameOrigin = nameBox.TranslatePoint(new Point(0, nameBox.Bounds.Height / 2), tokens)!.Value;
+        var typeOrigin = type.TranslatePoint(new Point(0, type.Bounds.Height / 2), tokens)!.Value;
+        Check(Math.Abs(nameOrigin.Y - typeOrigin.Y) < 2, "token name and type share the same vertical center");
+        tokens.Width = tokens.MinWidth;
+        await Capture(tokens, "tokens-compact");
+        Check(Controls<TextBox>(tokens).All(t => t.Bounds.Width > 40), "token inputs remain usable at minimum window width");
         Click(tokens, "Apply to configuration");
         string generated = (await tokensTask)!;
         Check(!char.IsWhiteSpace(generated[0]) && new PropertiesDocument(generated).Get("token[0].type") == "TimeStamp", "token export preserves configuration without leading whitespace");

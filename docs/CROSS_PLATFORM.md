@@ -1,6 +1,6 @@
-# Cross-platform desktop edition — 2.0.0
+# Cross-platform desktop edition — 2.0.1
 
-This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.0.
+This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.1.
 It is a native desktop application, not a website or a Wine wrapper. The existing
 WinForms edition remains available in its separate Windows solution.
 
