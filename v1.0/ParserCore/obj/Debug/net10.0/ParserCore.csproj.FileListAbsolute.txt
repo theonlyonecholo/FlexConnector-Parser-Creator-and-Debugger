@@ -1,0 +1,24 @@
+A:\Delphi projects\ASPD\csharp\ParserCore\bin\Debug\net10.0\ParserCore.deps.json
+A:\Delphi projects\ASPD\csharp\ParserCore\bin\Debug\net10.0\ParserCore.dll
+A:\Delphi projects\ASPD\csharp\ParserCore\bin\Debug\net10.0\ParserCore.pdb
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.GeneratedMSBuildEditorConfig.editorconfig
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.AssemblyInfoInputs.cache
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.AssemblyInfo.cs
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.csproj.CoreCompileInputs.cache
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.dll
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\refint\ParserCore.dll
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.pdb
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ref\ParserCore.dll
+A:\Delphi projects\ASPD\csharp\ParserCore\obj\Debug\net10.0\ParserCore.csproj.Up2Date
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\bin\Debug\net10.0\ParserCore.deps.json
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\bin\Debug\net10.0\ParserCore.dll
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\bin\Debug\net10.0\ParserCore.pdb
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.AssemblyInfoInputs.cache
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.AssemblyInfo.cs
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.csproj.CoreCompileInputs.cache
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.dll
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\refint\ParserCore.dll
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.pdb
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ref\ParserCore.dll
+C:\Users\Cholo\Documents\GitHub\ArcSight-Parser-Builder_Debugger\ParserCore\obj\Debug\net10.0\ParserCore.csproj.Up2Date

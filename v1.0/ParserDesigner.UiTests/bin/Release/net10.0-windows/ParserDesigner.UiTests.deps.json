@@ -1,0 +1,68 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "ParserDesigner.UiTests/1.0.0": {
+        "dependencies": {
+          "ArcSight.ParserDesigner": "1.0.0",
+          "ArcSight.ParserDesigner.Reference": "1.0.0.0"
+        },
+        "runtime": {
+          "ParserDesigner.UiTests.dll": {}
+        }
+      },
+      "ArcSight.ParserDesigner/1.0.0": {
+        "dependencies": {
+          "ParserCore": "1.0.0"
+        },
+        "runtime": {
+          "ArcSight.ParserDesigner.dll": {
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "ParserCore/1.0.0": {
+        "runtime": {
+          "ParserCore.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "ArcSight.ParserDesigner.Reference/1.0.0.0": {
+        "runtime": {
+          "ArcSight.ParserDesigner.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "ParserDesigner.UiTests/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ArcSight.ParserDesigner/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ParserCore/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "ArcSight.ParserDesigner.Reference/1.0.0.0": {
+      "type": "reference",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
