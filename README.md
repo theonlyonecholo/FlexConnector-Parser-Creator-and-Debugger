@@ -132,6 +132,11 @@ scripts/package-cross-platform.ps1     Self-contained platform packaging
 app/                      Compiled application in prepared distributions
 ```
 
+## Ubuntu
+This might help
+**chmod +x ArcSight.ParserDesigner.CrossPlatform
+./ArcSight.ParserDesigner.CrossPlatform**
+
 This project is not presented as an official ArcSight product. A repository
 license has not been declared; licensing and redistribution of reference
 material should be resolved by the owner before publishing.
