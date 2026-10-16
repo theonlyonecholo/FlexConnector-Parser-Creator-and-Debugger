@@ -136,6 +136,8 @@ app/                      Compiled application in prepared distributions
 This might help
 **chmod +x ArcSight.ParserDesigner.CrossPlatform
 ./ArcSight.ParserDesigner.CrossPlatform**
+There could also be problem with missing dependencies, you will maybe need to install these two:
+**sudo apt install libice6** and **sudo apt install libsm6**
 
 This project is not presented as an official ArcSight product. A repository
 license has not been declared; licensing and redistribution of reference
