@@ -757,4 +757,14 @@ Test("Partial submessage preview retains failed routing and full-log positions",
     Check(preview.Elements!.IsPartial && preview.Elements.PartialSpan == new TextSpan(input.IndexOf("abc", StringComparison.Ordinal), 3));
     Check(preview.Status.Contains("PARTIAL"));
 });
+Test("Submessage input: configured token, empty capture and missing capture are distinct", () =>
+{
+    const string source = "regex=id=(\\\\w+) body=(.*)\ntoken.count=2\ntoken[0].name=ID\ntoken[1].name=Body\nsubmessage.token=Body\nsubmessage.count=1\nsubmessage[0].pattern.count=1\nsubmessage[0].pattern[0].regex=(.*)\n";
+    var preview = SubmessageDebugger.Analyze(source, "id=TEST body=  abc  ", 0, 0);
+    Check(preview.BodyText == "  abc  " && preview.BodyOffset == 13);
+    Check(SubmessageDebugger.Analyze(source, "id=TEST body=", 0, 0).BodyText == "");
+    Check(SubmessageDebugger.Analyze(source, "invalid", 0, 0).BodyText is null);
+    Check(SubmessageDebugger.Analyze(source.Replace("submessage.token=Body", "submessage.token=ID"), "id=TEST body=abc", 0, 0).BodyText == "TEST");
+    Check(SubmessageDebugger.Analyze(source, "id=TEST body=abc", 0, -1).BodyText == "abc");
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

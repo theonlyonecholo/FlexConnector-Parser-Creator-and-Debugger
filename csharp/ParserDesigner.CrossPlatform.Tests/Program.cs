@@ -196,10 +196,13 @@ internal static class Checks
         Check(Field<TextEditor>(sub, "result").Text.Contains("submessage[0].pattern[0]", StringComparison.Ordinal), "submessage test reports selected route");
         var fields = Field<Dictionary<string, TextEditor>>(sub, "fields");
         fields["regex"].CaretOffset = fields["regex"].Text.IndexOf('(') + 1;
-        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected), "submessage group navigation highlights the original log");
+        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected), "submessage group navigation highlights the body token");
         Click(sub, "Element ▶");
         int bodyStart = logs[0].Text.IndexOf("user=", StringComparison.Ordinal);
-        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected && s.Index == bodyStart && s.Length == 1), "submessage literal stepping uses original full-log offsets");
+        Check(Field<TextEditor>(sub, "sample").Text == logs[0].Text[bodyStart..] && Field<TextEditor>(sub, "sample").IsReadOnly,
+            "submessage input displays only the configured token and cannot diverge from the original log");
+        Check(Field<TextEditor>(sub, "originalLog").Text == logs[0].Text, "full event remains available separately");
+        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected && s.Index == 0 && s.Length == 1), "submessage literal stepping uses token-relative offsets");
         Check(Field<TextBlock>(sub, "routeStatus").Text!.Contains("pattern[0]"), "actual route remains visible during element navigation");
         await Capture(sub, "submessages");
         sub.Width = sub.MinWidth;
@@ -217,7 +220,7 @@ internal static class Checks
         fields["regex"].Text += " REQUIRED";
         await sub.TestAsync();
         Check(Field<TextBlock>(sub, "previewStatus").Text!.Contains("PARTIAL") && Field<TextBlock>(sub, "routeStatus").Text!.Contains("SubmessageMismatch"), "partial submessage highlighting does not convert failed routing to success");
-        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Index == bodyStart && s.Length > 1), "partial submessage prefix uses full-log offsets");
+        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Index == 0 && s.Length > 1), "partial submessage prefix uses token-relative offsets");
         await Capture(sub, "submessages-partial");
         fields["regex"].Text = validPattern;
         Field<CheckBox>(sub, "automatic").IsChecked = true;
@@ -227,6 +230,16 @@ internal static class Checks
         fields["regex"].Text = validPattern;
         await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
         Field<CheckBox>(sub, "automatic").IsChecked = false;
+        Field<TextBox>(sub, "body").Text = "MessageID";
+        await sub.TestAsync();
+        Check(Field<TextEditor>(sub, "sample").Text == "LOGIN", "changing submessage.token changes the selected pattern input");
+        Field<TextBox>(sub, "body").Text = "Body";
+        Field<TextEditor>(sub, "originalLog").Text = "invalid original event";
+        await sub.TestAsync();
+        Check(Field<TextEditor>(sub, "sample").Text == "" && Field<CaptureHighlighter>(sub, "painter").Spans.Count == 0,
+            "failed main extraction clears body text and highlights instead of using the full event");
+        Field<TextEditor>(sub, "originalLog").Text = logs[0].Text;
+        await sub.TestAsync();
         Click(sub, "+ Pattern");
         fields["regex"].Text = validPattern;
         await sub.TestAsync();

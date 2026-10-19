@@ -20,7 +20,8 @@ internal sealed class SubmessagesDialog : Window
     private readonly TextBox body, idToken, messageId;
     private readonly CheckBox trim, fallback;
     private readonly Dictionary<string, TextEditor> fields = [];
-    private readonly TextEditor sample, result = Ui.Editor(readOnly: true);
+    private readonly TextEditor sample, originalLog, result = Ui.Editor(readOnly: true);
+    private readonly TextBlock bodyStatus = Ui.Label("SUBMESSAGE INPUT · press F5 to extract the configured token");
     private readonly CaptureHighlighter painter;
     private readonly SemaphoreSlim worker = new(1);
     private CancellationTokenSource? pending;
@@ -64,9 +65,11 @@ internal sealed class SubmessagesDialog : Window
             Content = "Default for unknown IDs"
         };
         Ui.Tip(fallback, "Only unknown IDs use this definition. A known ID with mismatching patterns does not fall back.");
-        sample = Ui.Editor(log);
+        originalLog = Ui.Editor(log);
+        sample = Ui.Editor(readOnly: true);
         painter = CaptureHighlighter.Attach(sample);
-        Ui.Tip(sample, "Full original log, including the main header. Test the draft before applying it.");
+        Ui.Tip(sample, "Raw value of submessage.token extracted by the main regex. All highlights use token-relative positions. Edit the Original log tab, then press F5 to extract it again.");
+        Ui.Tip(originalLog, "Full event used by the main parser to extract the body and message ID tokens. Press F5 after editing.");
         var mappings = new StackPanel { Spacing = 8 };
         var advanced = new StackPanel { Spacing = 8 };
         var hints = new Dictionary<string, string>
@@ -123,13 +126,14 @@ internal sealed class SubmessagesDialog : Window
                 new TabItem { Header = Ui.Label("Regex elements"), Content = elements },
                 new TabItem { Header = Ui.Label("Fields / types"), Content = new ScrollViewer { Content = mappings } },
                 new TabItem { Header = Ui.Label("Advanced mappings"), Content = new ScrollViewer { Content = advanced } },
-                new TabItem { Header = Ui.Label("Route / diagnostics"), Content = result }
+                new TabItem { Header = Ui.Label("Route / diagnostics"), Content = result },
+                new TabItem { Header = Ui.Label("Original log"), Content = originalLog }
             }
         };
         var controls = Ui.Bar(Ui.AsyncButton("Test log with these changes", RunPreviewAsync, "F5: test routing and the selected pattern independently."),
             Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)), automatic);
         var right = Ui.Rows("Auto,Auto,85,Auto,90,Auto,Auto,*",
-            selectionTitle, Ui.Label("FULL MESSAGE · highlights use positions in the original log"), sample,
+            selectionTitle, bodyStatus, sample,
             Ui.Label("SELECTED REGEX · click a group or use Regex elements; long expressions wrap"), fields["regex"],
             controls, Ui.Stack(routeStatus, previewStatus), previewTabs);
         var navigation = Ui.Rows("Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
@@ -151,7 +155,7 @@ internal sealed class SubmessagesDialog : Window
             box.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) Changed(); };
         trim.IsCheckedChanged += (_, _) => Changed();
         fallback.IsCheckedChanged += (_, _) => { messageId.IsEnabled = fallback.IsChecked != true; Changed(); };
-        sample.TextChanged += (_, _) => Changed();
+        originalLog.TextChanged += (_, _) => Changed();
         captures.SelectionChanged += (_, _) => { if (captures.SelectedItem is CaptureItem item) HighlightCapture(item.Row); };
         elements.SelectionChanged += (_, _) => SelectElement();
         automatic.IsCheckedChanged += (_, _) => { debounce.Stop(); if (automatic.IsChecked == true) debounce.Start(); };
@@ -160,6 +164,7 @@ internal sealed class SubmessagesDialog : Window
         Closed += (_, _) => { closed = true; debounce.Stop(); pending?.Cancel(); };
         Ui.HelpKey(this, "submessages");
         Refresh(selectedMessage >= 0 ? selectedMessage : 0, selectedPattern >= 0 ? selectedPattern : 0);
+        Opened += async (_, _) => await RunPreviewAsync();
     }
     private void Changed()
     {
@@ -175,6 +180,8 @@ internal sealed class SubmessagesDialog : Window
         captures.ItemsSource = null;
         elements.ItemsSource = null;
         painter.Paint(sample, []);
+        sample.Text = "";
+        bodyStatus.Text = "SUBMESSAGE INPUT · preview out of date; press F5";
         sample.Select(0, 0);
         previewStatus.Text = "Draft changed. Press F5 to refresh routing and highlights.";
         result.Text = "Draft changed. Test again to refresh the route and field highlights.";
@@ -291,7 +298,7 @@ internal sealed class SubmessagesDialog : Window
     internal async Task TestAsync()
     {
         debounce.Stop();
-        string configuration = BuildSource(), text = sample.Text;
+        string configuration = BuildSource(), text = originalLog.Text;
         int message = selected?.Message ?? -1, pattern = selected?.Pattern ?? -1;
         string[] names = fields["fields"].Text.Split(',');
         pending?.Cancel();
@@ -310,6 +317,36 @@ internal sealed class SubmessagesDialog : Window
         if (closed || current != revision || cancellation.IsCancellationRequested)
             return;
         evaluated = debug.Route;
+        sample.Text = debug.BodyText ?? "";
+        bodyStatus.Text = debug.BodyText is null
+            ? $"SUBMESSAGE INPUT · token '{body.Text}' was not captured"
+            : $"SUBMESSAGE INPUT · {body.Text} · {debug.BodyText.Length} characters · positions relative to token";
+        // Core/batch results retain original-log positions. This editor displays only the body token.
+        int offset = debug.BodyOffset;
+        if (debug.Captures is { } localCaptures)
+            debug = debug with
+            {
+                Captures = localCaptures with
+                {
+                    Matches = localCaptures.Matches.Select(s => s with { Index = s.Index - offset }).ToArray(),
+                    Rows = localCaptures.Rows.Select(r => r.Success ? r with { Index = r.Index - offset } : r).ToArray()
+                }
+            };
+        if (debug.Elements is { } localElements)
+            debug = debug with
+            {
+                Elements = localElements with
+                {
+                    PartialSpan = localElements.PartialSpan is { } span ? span with
+                    {
+                        Index = span.Index - offset
+                    } : null,
+                    Elements = localElements.Elements.Select(e => e with
+                    {
+                        Captures = e.Captures.Select(s => s with { Index = s.Index - offset }).ToArray()
+                    }).ToArray()
+                }
+            };
         routeStatus.Text = "Actual route: " + debug.Route.Route + " · " + debug.Route.State;
         captureResult = debug.Captures;
         elementResults = debug.Elements?.Elements ?? [];
@@ -317,7 +354,7 @@ internal sealed class SubmessagesDialog : Window
         result.Text = "ACTUAL ROUTE: " + debug.Route.Route + "\n" + debug.Route.Description + "\n"
             + string.Join("\n", debug.Route.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}"))
             + "\n\nSELECTED PATTERN: " + debug.Status + "\n\nELEMENT PREVIEW: " + (debug.Elements?.Status ?? "Select a pattern with a captured body.");
-        previewStatus.Text = debug.Status;
+        previewStatus.Text = debug.Elements?.IsPartial == true ? debug.Elements.Summary : debug.Status;
         captures.ItemsSource = captureResult?.Rows.Select(r => new CaptureItem(r,
             r.Group == 0 ? "Entire body match" : r.Group <= names.Length ? names[r.Group - 1].Trim() : "$" + r.Group)).ToArray();
         elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "

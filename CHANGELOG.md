@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.1 — 2026-10-19
+
+- Display the extracted submessage.token value as the submessage workbench input, with token-relative capture and partial-debug highlights.
+- Keep the editable full event in an Original log tab and extract the configured token when the window opens or F5 is pressed.
+- Clear missing/stale body previews and distinguish an empty captured value from failed extraction.
+- Verify token selection against the local and official FlexConnector Developer's Guide and add regressions for body changes and failed main matching.
+
 ## 2.3.0 — 2026-10-19
 
 - Preview matching regex prefixes when the complete regex fails, in both the main window and submessages.
