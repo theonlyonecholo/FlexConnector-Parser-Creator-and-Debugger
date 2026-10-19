@@ -135,8 +135,6 @@ scripts/package-cross-platform.ps1     Self-contained platform packaging
 app/                      Compiled application in prepared distributions
 ```
 
-<<<<<<< HEAD
-=======
 ## Ubuntu
 This might help
 **chmod +x ArcSight.ParserDesigner.CrossPlatform
