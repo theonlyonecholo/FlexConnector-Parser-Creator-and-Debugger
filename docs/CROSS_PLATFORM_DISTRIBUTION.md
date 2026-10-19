@@ -1,4 +1,4 @@
-# ArcSight Parser Designer 2.1.0 — native desktop application
+# ArcSight Parser Designer 2.2.1 — native desktop application
 
 This directory contains a self-contained application, including the .NET runtime.
 Keep all files together. No separate .NET installation or PDF is required.

@@ -71,7 +71,13 @@ public sealed class SubmessageConfiguration
         if (Messages.Count > 1000 || Messages.Sum(m => m.Patterns.Count) > 5000)
             throw new FormatException("The submessage/pattern count limit was exceeded.");
         var doc = new PropertiesDocument(source);
-        doc.RemoveWhere(k => k.StartsWith("submessage[", StringComparison.Ordinal));
+        var retained = new HashSet<string>(StringComparer.Ordinal);
+        void SetIndexed(string key, string? value)
+        {
+            if (value is not null)
+                retained.Add(key);
+            doc.Set(key, value);
+        }
         doc.Set("submessage.count", Messages.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
         doc.Set("submessage.token", BodyToken.Length == 0 ? null : BodyToken);
         doc.Set("submessage.messageid.token", IdToken.Length == 0 ? null : IdToken);
@@ -82,14 +88,15 @@ public sealed class SubmessageConfiguration
             if (message.Patterns.Count == 0)
                 throw new FormatException($"submessage[{i}] must have at least one pattern.");
             string prefix = $"submessage[{i}].";
-            doc.Set(prefix + "messageid", message.MessageId);
+            SetIndexed(prefix + "messageid", message.MessageId);
             foreach (var kv in message.Options)
-                doc.Set(prefix + kv.Key, kv.Value);
-            doc.Set(prefix + "pattern.count", message.Patterns.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                SetIndexed(prefix + kv.Key, kv.Value);
+            SetIndexed(prefix + "pattern.count", message.Patterns.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
             for (int p = 0; p < message.Patterns.Count; p++)
                 foreach (var kv in message.Patterns[p])
-                    doc.Set(prefix + $"pattern[{p}]." + kv.Key, kv.Value);
+                    SetIndexed(prefix + $"pattern[{p}]." + kv.Key, kv.Value);
         }
+        doc.RemoveWhere(k => k.StartsWith("submessage[", StringComparison.Ordinal) && !retained.Contains(k));
         // Validate references and every expression before committing to the editor.
         _ = new ParserEvaluator(doc.Source);
         return doc.Source;

@@ -60,7 +60,7 @@ internal static class Program
                 var helpTopics = Field<ListBox>(help, "topics");
                 if (!helpBody.Text.Contains("mappings.delimiter", StringComparison.Ordinal))
                     throw new Exception("Contextual submessage help missing");
-                if (helpTopics.Items.Count != 11)
+                if (helpTopics.Items.Count != 12)
                     throw new Exception("Help topics missing");
                 helpSearch.Text = "overrideeventmappings";
                 if (helpTopics.Items.Count != 1 || !helpBody.Text.Contains("clearfieldafterparsing", StringComparison.Ordinal))
@@ -69,7 +69,7 @@ internal static class Program
                 if (helpTopics.Items.Count != 0 || !helpBody.Text.StartsWith("No topics", StringComparison.Ordinal))
                     throw new Exception("Empty help search should explain result");
                 helpSearch.Clear();
-                if (helpTopics.Items.Count != 11)
+                if (helpTopics.Items.Count != 12)
                     throw new Exception("Clearing help search should restore all topics");
                 Capture(help, Path.Combine(output, "ui-help.png"));
                 help.Close();

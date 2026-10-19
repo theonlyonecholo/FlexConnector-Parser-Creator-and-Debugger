@@ -1,5 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Threading;
 using AvaloniaEdit;
 using ParserCore;
 
@@ -26,12 +28,27 @@ internal sealed class SubmessagesDialog : Window
     private Node? selected;
     private bool loading, closed;
     private int revision;
+    private readonly ListBox captures = new(), elements = new();
+    private readonly TextBlock selectionTitle = Ui.Label("Select a pattern", 16), previewStatus = Ui.Label("Test the draft to inspect this pattern.");
+    private readonly TextBlock routeStatus = Ui.Label("Actual route: not tested");
+    private readonly CheckBox automatic = new() { Content = "Automatic preview" };
+    private readonly DispatcherTimer debounce = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly TabControl previewTabs;
+    private DebugResult? captureResult;
+    private IReadOnlyList<RegexElement> elementResults = [];
+    private bool selectingElement;
+    private sealed record CaptureItem(DebugRow Row, string Field)
+    {
+        public override string ToString() => $"Group {Row.Group} · {Field} · " + (Row.Success ? $"[{Row.Index}..{Row.Index + Row.Length}) · {Row.Value[..Math.Min(100, Row.Value.Length)].Replace("\n", "\\n").Replace("\r", "\\r")}" : "no capture");
+    }
 
     public SubmessagesDialog(string source, string log, int selectedMessage = -1, int selectedPattern = -1)
     {
         this.source = source;
         model = SubmessageConfiguration.Load(source);
-        Ui.Setup(this, "Submessages · definitions and pattern order", 1220, 880);
+        Ui.Setup(this, "Submessages · pattern workbench", 1280, 940);
+        MinWidth = 1000;
+        MinHeight = 760;
         body = Ui.Input(model.BodyToken, "Main token containing the body: submessage.token.");
         idToken = Ui.Input(model.IdToken, "Main token whose value selects the definition: submessage.messageid.token.");
         trim = new()
@@ -49,9 +66,8 @@ internal sealed class SubmessagesDialog : Window
         sample = Ui.Editor(log);
         painter = CaptureHighlighter.Attach(sample);
         Ui.Tip(sample, "Full original log, including the main header. Test the draft before applying it.");
-        var editor = new StackPanel { Spacing = 8 };
-        editor.Children.Add(Ui.Columns("130,*", Ui.Label("Message ID"), messageId));
-        editor.Children.Add(fallback);
+        var mappings = new StackPanel { Spacing = 8 };
+        var advanced = new StackPanel { Spacing = 8 };
         var hints = new Dictionary<string, string>
         {
             ["regex"] = "Decoded regex for the entire body. Click a group after testing to highlight its field.",
@@ -69,7 +85,11 @@ internal sealed class SubmessagesDialog : Window
             input.Height = key == "regex" ? 90 : 60;
             Ui.Tip(input, hint);
             fields[key] = input;
-            editor.Children.Add(Ui.Columns("155,*", Ui.Label(key), input));
+            if (key != "regex")
+            {
+                var page = key is "fields" or "types" or "formats" ? mappings : advanced;
+                page.Children.Add(Ui.Stack(Ui.Label(key), input));
+            }
             input.TextChanged += (_, _) => Changed();
         }
         fields["regex"].TextArea.Caret.PositionChanged += (_, _) => HighlightGroup();
@@ -94,14 +114,32 @@ internal sealed class SubmessagesDialog : Window
             Ui.Button("Remove", Remove, "Remove the selected pattern or entire definition."),
             Ui.Button("↑ Earlier", () => Move(-1), "The first matching pattern wins."),
             Ui.Button("↓ Later", () => Move(1), "Move the selected definition or pattern later in the order."));
-        var right = Ui.Rows("*,Auto,100,Auto,110", new ScrollViewer { Content = editor }, Ui.Label("Selected full log"), sample,
-            Ui.Bar(Ui.AsyncButton("Test log with these changes", () => Ui.Guard(this, TestAsync))), result);
+        previewTabs = new TabControl
+        {
+            ItemsSource = new[]
+            {
+                new TabItem { Header = Ui.Label("Captures"), Content = captures },
+                new TabItem { Header = Ui.Label("Regex elements"), Content = elements },
+                new TabItem { Header = Ui.Label("Fields / types"), Content = new ScrollViewer { Content = mappings } },
+                new TabItem { Header = Ui.Label("Advanced mappings"), Content = new ScrollViewer { Content = advanced } },
+                new TabItem { Header = Ui.Label("Route / diagnostics"), Content = result }
+            }
+        };
+        var controls = Ui.Bar(Ui.AsyncButton("Test log with these changes", RunPreviewAsync, "F5: test routing and the selected pattern independently."),
+            Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)), automatic);
+        var right = Ui.Rows("Auto,Auto,85,Auto,90,Auto,Auto,*",
+            selectionTitle, Ui.Label("FULL MESSAGE · highlights use positions in the original log"), sample,
+            Ui.Label("SELECTED REGEX · click a group or use Regex elements; long expressions wrap"), fields["regex"],
+            controls, Ui.Stack(routeStatus, previewStatus), previewTabs);
+        var navigation = Ui.Rows("Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
+            tools, Ui.Stack(Ui.Label("Message ID"), messageId, fallback),
+            Ui.Label("Select a pattern below to edit it. The first matching pattern wins."), nodes);
         Content = new Border
         {
             Padding = new Thickness(16),
             Child = Ui.Rows("Auto,*,Auto",
-            Ui.Columns("Auto,*,Auto,*,Auto", Ui.Label("Body token"), body, Ui.Label("Message ID token"), idToken, trim),
-            Ui.Columns("280,*", Ui.Rows("Auto,*", tools, nodes), right),
+            Ui.Columns("*,*,Auto", Ui.Stack(Ui.Label("Body token"), body), Ui.Stack(Ui.Label("Message ID token (optional)"), idToken), trim),
+            Ui.Columns("250,*", Ui.Card(navigation), Ui.Card(right)),
             Ui.Bar(Ui.AsyncButton("Apply to configuration", () => Ui.Guard(this, () => { Close(BuildSource()); return Task.CompletedTask; })),
                 Ui.Button("Cancel", () => Close()), Ui.Help(this, "submessages")))
         };
@@ -113,19 +151,34 @@ internal sealed class SubmessagesDialog : Window
         trim.IsCheckedChanged += (_, _) => Changed();
         fallback.IsCheckedChanged += (_, _) => { messageId.IsEnabled = fallback.IsChecked != true; Changed(); };
         sample.TextChanged += (_, _) => Changed();
-        Closed += (_, _) => { closed = true; pending?.Cancel(); };
+        captures.SelectionChanged += (_, _) => { if (captures.SelectedItem is CaptureItem item) HighlightCapture(item.Row); };
+        elements.SelectionChanged += (_, _) => SelectElement();
+        automatic.IsCheckedChanged += (_, _) => { debounce.Stop(); if (automatic.IsChecked == true) debounce.Start(); };
+        debounce.Tick += async (_, _) => { debounce.Stop(); await RunPreviewAsync(); };
+        KeyDown += async (_, e) => { if (e.Key == Key.F5) { e.Handled = true; await RunPreviewAsync(); } };
+        Closed += (_, _) => { closed = true; debounce.Stop(); pending?.Cancel(); };
         Ui.HelpKey(this, "submessages");
-        Refresh(selectedMessage >= 0 ? selectedMessage : 0, selectedPattern >= 0 ? selectedPattern : null);
+        Refresh(selectedMessage >= 0 ? selectedMessage : 0, selectedPattern >= 0 ? selectedPattern : 0);
     }
     private void Changed()
     {
         if (loading)
             return;
         revision++;
+        debounce.Stop();
         pending?.Cancel();
         evaluated = null;
+        captureResult = null;
+        elementResults = [];
+        captures.ItemsSource = null;
+        elements.ItemsSource = null;
         painter.Paint(sample, []);
+        sample.Select(0, 0);
+        previewStatus.Text = "Draft changed. Press F5 to refresh routing and highlights.";
         result.Text = "Draft changed. Test again to refresh the route and field highlights.";
+        routeStatus.Text = "Actual route: preview out of date";
+        if (!closed && automatic.IsChecked == true)
+            debounce.Start();
     }
     private void Store()
     {
@@ -161,6 +214,7 @@ internal sealed class SubmessagesDialog : Window
         try
         {
             var definition = selected is null ? null : model.Messages[selected.Message];
+            selectionTitle.Text = selected is null ? "Add a submessage to get started" : $"submessage[{selected.Message}] · {definition?.MessageId ?? "DEFAULT"}" + (selected.Pattern is int selectedPattern ? $" · pattern[{selectedPattern}]" : " · select a pattern below");
             messageId.Text = definition?.MessageId ?? "";
             fallback.IsChecked = definition?.MessageId is null;
             messageId.IsEnabled = definition is not null && fallback.IsChecked != true;
@@ -234,7 +288,10 @@ internal sealed class SubmessagesDialog : Window
     }
     internal async Task TestAsync()
     {
+        debounce.Stop();
         string configuration = BuildSource(), text = sample.Text;
+        int message = selected?.Message ?? -1, pattern = selected?.Pattern ?? -1;
+        string[] names = fields["fields"].Text.Split(',');
         pending?.Cancel();
         pending?.Dispose();
         pending = new();
@@ -242,32 +299,115 @@ internal sealed class SubmessagesDialog : Window
         int current = ++revision;
         result.Text = "Testing draft…";
         await worker.WaitAsync(cancellation);
-        ParserResult detail;
+        SubmessageDebugResult debug;
         try
         {
-            detail = await Task.Run(() => new ParserEvaluator(configuration).Evaluate(text, true, cancellation), cancellation);
+            debug = await Task.Run(() => SubmessageDebugger.Analyze(configuration, text, message, pattern, cancellation), cancellation);
         }
         finally { worker.Release(); }
         if (closed || current != revision || cancellation.IsCancellationRequested)
             return;
-        evaluated = detail;
-        result.Text = detail.Route + "\n" + detail.Description + "\n" + string.Join("\n", detail.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}"));
-        painter.Paint(sample, detail.Captures.Where(c => c.Name != "Entire match").Select((c, i) => new Highlight(c.Index, c.Length, i)));
+        evaluated = debug.Route;
+        routeStatus.Text = "Actual route: " + debug.Route.Route + " · " + debug.Route.State;
+        captureResult = debug.Captures;
+        elementResults = debug.Elements?.Elements ?? [];
+        result.Text = "ACTUAL ROUTE: " + debug.Route.Route + "\n" + debug.Route.Description + "\n"
+            + string.Join("\n", debug.Route.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}"))
+            + "\n\nSELECTED PATTERN: " + debug.Status + "\n\nELEMENT PREVIEW: " + (debug.Elements?.Status ?? "Select a pattern with a captured body.");
+        previewStatus.Text = debug.Status;
+        captures.ItemsSource = captureResult?.Rows.Select(r => new CaptureItem(r,
+            r.Group == 0 ? "Entire body match" : r.Group <= names.Length ? names[r.Group - 1].Trim() : "$" + r.Group)).ToArray();
+        elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "
+            + (e.Captures.Count == 0 ? "no final capture" : string.Join(", ", e.Captures.Take(10).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
+        Paint();
     }
     private void HighlightGroup()
     {
-        if (evaluated is null || selected?.Pattern is not int p)
+        if (loading || selectingElement || captureResult is null)
             return;
-        if (evaluated.UsedSubmessage != selected.Message || evaluated.UsedPattern != p)
+        int caret = fields["regex"].CaretOffset;
+        if (previewTabs.SelectedIndex == 1)
         {
-            result.Text = "The selected pattern was not used. " + evaluated.Route + "\n" + evaluated.Description;
+            var element = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
+            if (element is not null)
+                elements.SelectedIndex = elementResults.ToList().IndexOf(element);
             return;
         }
-        var group = RegexGroupMap.At(RegexGroupMap.Build(fields["regex"].Text), fields["regex"].CaretOffset);
-        painter.Paint(sample, evaluated.Captures.Where(c => c.Name != "Entire match").Select((c, i) => new Highlight(c.Index, c.Length, i, c.Stage == "Submessage" && c.Group == group?.Number)));
+        var group = RegexGroupMap.At(RegexGroupMap.Build(fields["regex"].Text), caret);
+        Paint(group?.Number);
         if (group is null)
+        {
+            sample.Select(0, 0);
             return;
-        var capture = evaluated.Captures.FirstOrDefault(c => c.Stage == "Submessage" && c.Group == group.Number);
-        result.Text = evaluated.Route + "\n" + (capture is null ? $"Group {group.Number}: no capture." : $"{capture.Name}: position {capture.Index}, length {capture.Length}");
+        }
+        var row = captureResult.Rows.FirstOrDefault(r => r.Group == group.Number && r.Success);
+        if (row is not null)
+            Locate(row.Index, row.Length);
+        else
+            sample.Select(0, 0);
+        previewStatus.Text = row is null ? $"Group {group.Number}: no capture." : $"Group {group.Number}: position {row.Index}, length {row.Length}.";
+    }
+    private async Task RunPreviewAsync()
+    {
+        try
+        {
+            await TestAsync();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (closed)
+                return;
+            previewStatus.Text = "Unable to test draft: " + ex.Message;
+            result.Text = ex.Message;
+        }
+    }
+    private void Paint(int? group = null, DebugRow? selectedCapture = null) =>
+        painter.Paint(sample, captureResult?.Rows.Where(r => r.Success).Select(r =>
+            new Highlight(r.Index, r.Length, r.Group == 0 ? 4 : r.Group - 1, r == selectedCapture || r.Group == group)) ?? []);
+    private void HighlightCapture(DebugRow row)
+    {
+        Paint(selectedCapture: row);
+        if (row.Success)
+            Locate(row.Index, row.Length);
+        else
+            sample.Select(0, 0);
+        previewStatus.Text = row.Success ? $"Group {row.Group}: position {row.Index}, length {row.Length}. Raw value; no ArcSight conversion." : $"Group {row.Group}: no capture.";
+    }
+    private void Locate(int index, int length)
+    {
+        sample.Select(index, length);
+        sample.ScrollToLine(sample.Document.GetLineByOffset(index).LineNumber);
+    }
+    private void MoveElement(int direction)
+    {
+        previewTabs.SelectedIndex = 1;
+        if (elementResults.Count == 0)
+        {
+            previewStatus.Text = "Press F5 to create element preview. See Route / diagnostics for errors or unsupported syntax.";
+            return;
+        }
+        elements.SelectedIndex = Math.Clamp(elements.SelectedIndex < 0 ? 0 : elements.SelectedIndex + direction, 0, elementResults.Count - 1);
+        elements.ScrollIntoView(elements.SelectedItem!);
+    }
+    private void SelectElement()
+    {
+        if (elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
+            return;
+        var element = elementResults[elements.SelectedIndex];
+        selectingElement = true;
+        try
+        {
+            fields["regex"].Select(element.Start, element.Length);
+            fields["regex"].ScrollToLine(fields["regex"].Document.GetLineByOffset(element.Start).LineNumber);
+        }
+        finally { selectingElement = false; }
+        painter.Paint(sample, element.Captures.Select(c => new Highlight(c.Index, c.Length, 0, true)));
+        if (element.Captures.FirstOrDefault() is { } span)
+            Locate(span.Index, span.Length);
+        else
+            sample.Select(0, 0);
+        previewStatus.Text = $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — "
+            + (element.Captures.Count == 0 ? "no final capture" : $"{element.Captures.Count} span(s); first position {element.Captures[0].Index}, length {element.Captures[0].Length}. Zero length means an assertion or empty match.");
     }
 }

@@ -8,12 +8,15 @@ public sealed class PropertiesDocument
 {
     private sealed record Entry(string Raw, string? Key, string? Value);
     private readonly List<Entry> entries = [];
+    private readonly string newline;
     public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
     public string Source => string.Concat(entries.Select(e => e.Raw));
     public string Get(string key) => Values.GetValueOrDefault(key, "");
 
     public PropertiesDocument(string source)
     {
+        int firstNewline = source.IndexOfAny(['\r', '\n']);
+        newline = firstNewline < 0 ? "\r\n" : source[firstNewline] == '\r' && firstNewline + 1 < source.Length && source[firstNewline + 1] == '\n' ? "\r\n" : source[firstNewline].ToString();
         var lines = new List<string>();
         for (int start = 0, i = 0; i < source.Length; i++)
         {
@@ -138,7 +141,7 @@ public sealed class PropertiesDocument
         foreach (string key in Values.Keys.Where(predicate).ToArray())
             Values.Remove(key);
     }
-    /// <summary>Replaces a key in place, removes duplicate definitions, or deletes the key when value is null.</summary>
+    /// <summary>Updates in place, inserts new keys beside their category, removes duplicates, or deletes null values.</summary>
     public void Set(string key, string? value)
     {
         if (value is null)
@@ -146,10 +149,12 @@ public sealed class PropertiesDocument
             RemoveWhere(k => k == key);
             return;
         }
-        string line = Escape(key) + "=" + Escape(value) + "\r\n";
+        string line = Escape(key) + "=" + Escape(value) + newline;
         int first = entries.FindIndex(e => e.Key == key);
         if (first >= 0)
         {
+            if (entries[first].Value == value && entries.Count(e => e.Key == key) == 1)
+                return;
             entries[first] = new(line, key, value);
             for (int i = entries.Count - 1; i > first; i--)
                 if (entries[i].Key == key)
@@ -157,15 +162,87 @@ public sealed class PropertiesDocument
         }
         else
         {
-            string boundary = Boundary(Source);
-            if (entries.Count > 0 && boundary.Length > 0)
-                entries[^1] = entries[^1] with
-                {
-                    Raw = entries[^1].Raw + boundary
-                };
-            entries.Add(new(line, key, value));
+            Insert(InsertionIndex(key), new(line, key, value));
         }
         Values[key] = value;
+    }
+
+    private void Insert(int index, Entry entry)
+    {
+        if (index > 0)
+        {
+            string boundary = Boundary(entries[index - 1].Raw).Replace("\r\n", newline, StringComparison.Ordinal);
+            if (boundary.Length > 0)
+                entries[index - 1] = entries[index - 1] with
+                {
+                    Raw = entries[index - 1].Raw + boundary
+                };
+        }
+        entries.Insert(index, entry);
+    }
+    private int BeforeHeading(int index)
+    {
+        int start = index;
+        while (start > 0 && entries[start - 1].Key is null)
+            start--;
+        // Keep an initial file banner at the start of the file.
+        return start == 0 ? index : start;
+    }
+    private int InsertionIndex(string key)
+    {
+        var target = PropertyLayout.Describe(key);
+        if (target is null)
+            return entries.Count;
+        var peers = entries.Select((entry, index) => (Position: entry.Key is null ? null : PropertyLayout.Describe(entry.Key), Index: index))
+            .Where(e => e.Position is not null).ToArray();
+        var same = peers.Where(e => e.Position!.Category == target.Category).ToArray();
+        if (same.Length > 0)
+        {
+            var preceding = same.Where(e => PropertyLayout.Compare(e.Position!, target) <= 0)
+                .OrderBy(e => e.Position, Comparer<PropertyLayout.Position?>.Create((a, b) => PropertyLayout.Compare(a!, b!))).ThenBy(e => e.Index).ToArray();
+            if (preceding.Length > 0)
+                return preceding[^1].Index + 1;
+            return BeforeHeading(same[0].Index);
+        }
+        var lower = peers.Where(e => e.Position!.Category < target.Category).ToArray();
+        if (lower.Length > 0)
+        {
+            int category = lower.Max(e => e.Position!.Category);
+            return lower.Last(e => e.Position!.Category == category).Index + 1;
+        }
+        return peers.Length > 0 ? BeforeHeading(peers[0].Index) : entries.Count;
+    }
+
+    /// <summary>Updates edited keys in place and imports new comments without duplicating existing comments.</summary>
+    public void MergeFrom(PropertiesDocument edited)
+    {
+        foreach (var (key, value) in edited.Values)
+            Set(key, value);
+        var available = entries.Where(e => e.Key is null && !string.IsNullOrWhiteSpace(e.Raw))
+            .GroupBy(e => e.Raw.Trim(), StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        int? trailingIndex = null;
+        for (int i = 0; i < edited.entries.Count; i++)
+        {
+            var entry = edited.entries[i];
+            if (entry.Key is not null || string.IsNullOrWhiteSpace(entry.Raw))
+                continue;
+            string comment = entry.Raw.Trim();
+            if (available.GetValueOrDefault(comment) > 0)
+            {
+                available[comment]--;
+                continue;
+            }
+            string? next = edited.entries.Skip(i + 1).FirstOrDefault(e => e.Key is not null)?.Key;
+            string? previous = edited.entries.Take(i).LastOrDefault(e => e.Key is not null)?.Key;
+            int index = next is not null ? entries.FindIndex(e => e.Key == next)
+                : trailingIndex ?? (previous is not null ? entries.FindLastIndex(e => e.Key == previous) + 1 : entries.Count);
+            Insert(index, entry with
+            {
+                Raw = entry.Raw + Boundary(entry.Raw).Replace("\r\n", newline, StringComparison.Ordinal)
+            });
+            if (next is null)
+                trailingIndex = index + 1;
+        }
     }
 
     // Add only the required line boundary. An unfinished continuation requires

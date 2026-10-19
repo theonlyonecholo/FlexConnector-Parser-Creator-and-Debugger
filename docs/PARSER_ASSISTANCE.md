@@ -39,3 +39,34 @@ The bounded instrumentation supports ordinary groups, noncapturing groups, atomi
 - ParserDesigner.CrossPlatform/MainWindow.cs: element navigation and proposal integration.
 
 All processing uses the existing local .NET engine. Validate the final configuration in ArcSight's Java-based connector.
+
+## Submessage workbench (2.2)
+
+The cross-platform Avalonia window uses the same implementation on Windows, Linux and macOS. Windows and Ubuntu/WSLg are runtime-tested; macOS is not tested in this environment.
+
+The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the full sample message and selected regex visible. Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
+
+Press F5 or Test log with these changes to test the draft. Automatic preview is optional and refreshes after a typing pause. Edits and node switches cancel stale work and clear previous highlights; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
+
+The persistent Actual route label identifies the winning definition/pattern. Independently, the selected pattern is evaluated against the complete captured body token, even if routing selected another pattern or ID. A notice explicitly says when the selected pattern was NOT used by routing. This lets you tune later alternatives without reordering or changing production routing.
+
+Click a capture row or a group in the regex to highlight its original-log span. Open Regex elements or use the Element arrows to step through literals, classes, quantifiers, groups and assertions, selecting the regex source and highlighting corresponding message spans. Trim offsets and the main-header offset are preserved. Long body values are taken from the original input rather than truncated display snippets. Zero-length matches show positions; skipped alternatives have no final capture. The same supported-syntax and final-match limitations described above apply.
+
+Implementation: ParserCore/SubmessageDebugger.cs coordinates route evaluation, selected-pattern capture analysis and element instrumentation. ParserDesigner.CrossPlatform/SubmessagesDialog.cs owns selection, debounce/cancellation, tabs and highlight navigation. No network service or new external dependency is used.
+
+![Submessage workbench on Ubuntu](assets/submessage-workbench-ubuntu.png)
+
+
+## Property placement (2.2.1)
+
+New keys are inserted beside their existing category and indexed siblings, rather than appended to the end of the file. This applies to tokens, submessages and nested patterns, event mappings (including conditional descendants), severity rules and extra processors. Numeric indices sort naturally: 2 precedes 10. New token formats stay beside their token; new submessage pattern fields stay beside their pattern.
+
+When a category has no existing keys, insertion uses this default sequence: main regex and trim.message, tokens, submessages and trim.submessage, event mappings, severity, extra processors. Existing keys are not globally reordered. A file that already has scattered sections is not automatically reformatted or consolidated. Unknown property families retain their existing position; newly added unknown keys are appended.
+
+Unchanged properties retain their original raw formatting, separators, escaping and continuations. Existing comments remain in place; preceding comment blocks are kept with following sections when inserting before them, except that the initial file banner is retained at the start. New/changed lines use the file's first detected newline style. Custom fields and unrelated source blocks are preserved.
+
+Submessage updates retain existing indexed keys in place and remove only obsolete keys. Extra processor edits merge properties in place, retaining custom options and importing added comments without duplicating comments already present. Original comments are conservatively retained rather than interpreted as deletable editor metadata. Comments associated with reordered indices remain at their existing source positions; the application cannot infer their intended meaning.
+
+This is a shared ParserCore change used by both C# frontends. It changes source placement, not submessage routing or expression semantics. The order of indexed alternatives still comes from their indices.
+
+Implementation: PropertyLayout.cs classifies known categories and compares hierarchical key paths; PropertiesDocument.Set handles insertion and unchanged-source preservation; MergeFrom merges processor drafts and comments. Regression tests cover every category, nested numeric indices, line endings, continuations, custom properties and repeated application.

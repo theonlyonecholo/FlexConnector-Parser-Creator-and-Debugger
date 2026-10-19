@@ -101,10 +101,11 @@ public static class AdvancedConfiguration
         doc.Set("event.deviceSeverity", severityToken.Length == 0 ? null : severityToken);
         foreach (string level in SeverityLevels)
             doc.Set(SeverityKey(level), string.IsNullOrWhiteSpace(rules[level]) ? null : rules[level]);
-        doc.RemoveWhere(IsProcessorKey);
         // Keep comments and custom options entered in the processor editor as well.
         extra.Set("extraprocessor.count", count.ToString(CultureInfo.InvariantCulture));
-        return PropertiesDocument.JoinSources(doc.Source, extra.Source);
+        doc.RemoveWhere(key => IsProcessorKey(key) && !extra.Values.ContainsKey(key));
+        doc.MergeFrom(extra);
+        return doc.Source;
     }
 
     public static string ProcessorTemplate(string type, int index)

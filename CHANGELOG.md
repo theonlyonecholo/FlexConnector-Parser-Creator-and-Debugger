@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.1 — 2026-10-19
+
+- Insert new properties beside their category and indexed siblings instead of at the end of the parser.
+- Preserve existing submessage and extra processor positions during editor updates.
+- Preserve unchanged raw lines and newline style, and avoid repeated processor-comment duplication.
+- Cover tokens, nested submessages, event mapping, severity, processors and repeated saves with regression tests.
+
+## 2.2.0 — 2026-10-19
+
+- Redesigned the shared cross-platform submessage editor with persistent message/regex editors,
+  separate capture, element, field, advanced-mapping and diagnostics tabs, and clear routing status.
+- Added regex-element stepping, clickable capture previews, F5 and optional automatic preview.
+- Added independent selected-pattern debugging without changing actual message-ID or pattern routing.
+- Preserved full-log highlight offsets through trimming and long body captures; added regression coverage.
+
 ## 2.1.0 — 2026-10-19
 
 - Added offline parser proposals from sample logs, with tokens, inferred event fields,

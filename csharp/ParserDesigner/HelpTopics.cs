@@ -16,6 +16,8 @@ In Event mapping, snippets show raw tokens from the first match of the working r
 Press F5 and open Regex elements. Use the Element arrows, select a row or click inside the regex on that tab. The selected source element and its text spans are highlighted, including literals, classes, quantifiers and groups. Repeated elements may have multiple captures. Zero-length assertions show positions; skipped alternatives have no captures.
 
 Element stepping follows source order and the final first match, not internal backtracking. When there is no complete match, there are no final captures. Unsupported constructs (backreferences, named/balancing groups, conditionals, inline flags/comments and nested classes) are explained in Diagnostics; capture debug remains available.
+
+In the cross-platform Submessages workbench, Message and Regex remain visible above tabs for Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics. Press F5 or enable Automatic preview. Capture rows and regex groups highlight positions in the original full log; Element arrows also select literals and other atoms. The selected pattern is tested independently against the body, even if another alternative wins routing. Actual route remains visible separately; a NOT used notice prevents confusing this independent preview with connector routing. Editing cancels stale previews. Trimming retains original-log offsets. These controls are shared by Windows, Linux and macOS builds.
 """),
         new("start", "Getting started: from log to event", """
 A parser describes how to turn original log text into a structured ArcSight event. The regex recognizes text, tokens name captured values, and mappings assign them to event.* fields.

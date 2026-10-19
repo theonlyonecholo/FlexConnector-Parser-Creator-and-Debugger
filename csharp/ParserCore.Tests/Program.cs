@@ -587,4 +587,123 @@ Test("Suggestion: positional variables and custom-field overflow", () =>
     Check(new PropertiesDocument(overflow.Source).Get("token.count") == "6");
     Check(overflow.Report.Contains("without capture"));
 });
+Test("Submessage debug: offsets include main and body trimming", () =>
+{
+    string source = "regex=id=(\\\\w+) body=(.*)\ntoken.count=2\ntoken[0].name=ID\ntoken[1].name=Body\ntrim.message=true\ntrim.submessage=true\nsubmessage.token=Body\nsubmessage.messageid.token=ID\nsubmessage.count=1\nsubmessage[0].messageid=LOGIN\nsubmessage[0].pattern.count=1\nsubmessage[0].pattern[0].regex=user=(\\\\w+)\n";
+    const string input = "  id=LOGIN body=  user=alice  ";
+    var debug = SubmessageDebugger.Analyze(source, input, 0, 0);
+    Check(debug.Route.Success);
+    Check(debug.Captures!.Rows.Single(r => r.Group == 1).Index == input.IndexOf("alice", StringComparison.Ordinal));
+    Check(debug.Elements!.Elements.First(e => e.Expression == "u").Captures.Single().Index == input.IndexOf("user", StringComparison.Ordinal));
+});
+Test("Submessage debug: selected alternative is distinct from actual routing", () =>
+{
+    var doc = new PropertiesDocument(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "submessages.sdkrfilereader.properties")));
+    doc.Set("submessage[0].pattern[1].regex", @"user=(\w+) result=(\w+)");
+    var debug = SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=user=alice result=ok", 0, 1);
+    Check(debug.Route.UsedPattern == 0 && debug.Captures!.Matches.Count == 1);
+    Check(debug.Status.Contains("NOT used"));
+    var failed = SubmessageDebugger.Analyze(doc.Source, "unrelated", 0, 1);
+    Check(failed.Captures is null && failed.Elements is null);
+});
+Test("Submessage debug: body is not truncated and cancellation propagates", () =>
+{
+    const string source = "regex=(.*)\ntoken.count=1\ntoken[0].name=Body\nsubmessage.token=Body\nsubmessage.count=1\nsubmessage[0].pattern.count=1\nsubmessage[0].pattern[0].regex=(.*)END\n";
+    string input = new string('x', 3000) + "END";
+    var debug = SubmessageDebugger.Analyze(source, input, 0, 0);
+    Check(debug.Captures!.Matches.Single().Length == 3003);
+    Check(debug.Elements!.Elements.Single(e => e.Expression == "E").Captures.Single().Index == 3000);
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    Throws<OperationCanceledException>(() => SubmessageDebugger.Analyze(source, input, 0, 0, cancellation.Token));
+});
+Test("Layout: new tokens stay with tokens and preserve surrounding comments", () =>
+{
+    const string source = "# Header\nregex=(.*)\n# Tokens\ntoken.count=1\ntoken[0].name: Existing\ntoken[0].type=String\n\n# Event mappings\nevent.message=Existing\n# Custom tail\ncustom.option: untouched\n";
+    var draft = TokenGenerator.Draft(source, "(.*)(.*)");
+    string output = TokenGenerator.Apply(source, "(.*)(.*)", draft);
+    Check(output.IndexOf("token[1].type", StringComparison.Ordinal) < output.IndexOf("# Event mappings", StringComparison.Ordinal));
+    Check(output.Contains("token[0].name: Existing\n") && output.EndsWith("# Custom tail\ncustom.option: untouched\n", StringComparison.Ordinal));
+    Check(!output.Contains('\r'));
+    Check(TokenGenerator.Apply(output, "(.*)(.*)", TokenGenerator.Draft(output, "(.*)(.*)")) == output);
+});
+Test("Layout: nested fields and indices use natural numeric order", () =>
+{
+    var doc = new PropertiesDocument("token.count=11\ntoken[2].name=Two\ntoken[2].type=String\n# Ten\ntoken[10].name=Ten\ntoken[10].type=String\nevent.name=Name\n");
+    doc.Set("token[2].format", "format");
+    doc.Set("token[9].name", "Nine");
+    doc.Set("token[9].type", "String");
+    Check(doc.Source.IndexOf("token[2].format", StringComparison.Ordinal) < doc.Source.IndexOf("token[9].name", StringComparison.Ordinal));
+    Check(doc.Source.IndexOf("token[9].type", StringComparison.Ordinal) < doc.Source.IndexOf("# Ten", StringComparison.Ordinal));
+    var sub = new PropertiesDocument("submessage[0].pattern[2].regex=a\nsubmessage[0].pattern[10].regex=b\nevent.name=Name\n");
+    sub.Set("submessage[0].pattern[2].fields", "event.message");
+    sub.Set("submessage[0].pattern[9].regex", "c");
+    Check(sub.Source.IndexOf("pattern[2].fields", StringComparison.Ordinal) < sub.Source.IndexOf("pattern[9]", StringComparison.Ordinal));
+    Check(sub.Source.IndexOf("pattern[9]", StringComparison.Ordinal) < sub.Source.IndexOf("pattern[10]", StringComparison.Ordinal));
+});
+Test("Layout: missing categories fit between existing sections", () =>
+{
+    var doc = new PropertiesDocument("# Banner\nregex=(.*)\n# Event mapping\nevent.message=Body\n# Processors\nextraprocessor.count=0\ncustom.tail=keep\n");
+    doc.Set("token.count", "1");
+    doc.Set("token[0].name", "Body");
+    doc.Set("submessage.count", "0");
+    doc.Set("severity.map.high.if.deviceSeverity", "ERROR");
+    Check(doc.Source.StartsWith("# Banner\nregex=(.*)\n"));
+    Check(doc.Source.IndexOf("token[0]", StringComparison.Ordinal) < doc.Source.IndexOf("submessage.count", StringComparison.Ordinal));
+    Check(doc.Source.IndexOf("submessage.count", StringComparison.Ordinal) < doc.Source.IndexOf("# Event mapping", StringComparison.Ordinal));
+    Check(doc.Source.IndexOf("severity.map", StringComparison.Ordinal) < doc.Source.IndexOf("# Processors", StringComparison.Ordinal));
+    Check(doc.Source.EndsWith("custom.tail=keep\n"));
+});
+Test("Layout: event mapping and severity additions remain in their categories", () =>
+{
+    string source = "regex=(.*)\ntoken.count=1\ntoken[0].name=Body\nevent.message=Body\n# Severity\nseverity.map.high.if.deviceSeverity=ERROR\n# Tail\ncustom=keep\n";
+    string mapped = EventMapping.Apply(source, [new("event.message", "Body"), new("event.name", EventMapping.Constant("Test"))]);
+    Check(mapped.IndexOf("event.name", StringComparison.Ordinal) < mapped.IndexOf("# Severity", StringComparison.Ordinal));
+    var doc = new PropertiesDocument(mapped);
+    doc.Set("severity.map.low.if.deviceSeverity", "INFO");
+    Check(doc.Source.IndexOf("severity.map.low", StringComparison.Ordinal) < doc.Source.IndexOf("# Tail", StringComparison.Ordinal));
+});
+Test("Layout: submessage updates preserve position and comments across repeated apply", () =>
+{
+    string source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "submessages.sdkrfilereader.properties"));
+    source = source.Replace("submessage[0].pattern[0].regex=", "# Keep pattern note\nsubmessage[0].pattern[0].regex=", StringComparison.Ordinal)
+        + "\n# End of parser\ncustom.tail=keep\n";
+    var model = SubmessageConfiguration.Load(source);
+    model.Messages[0].Patterns.Add(new()
+    {
+        ["regex"] = "(new)",
+        ["fields"] = "event.message"
+    });
+    string updated = model.Apply(source);
+    Check(updated.IndexOf("submessage[0].pattern[2]", StringComparison.Ordinal) < updated.IndexOf("submessage[1].messageid", StringComparison.Ordinal));
+    Check(updated.Contains("# Keep pattern note\nsubmessage[0].pattern[0].regex="));
+    Check(updated.EndsWith("# End of parser\ncustom.tail=keep\n"));
+    Check(SubmessageConfiguration.Load(updated).Apply(updated) == updated);
+});
+Test("Layout: extra processor merge stays in place and does not duplicate comments", () =>
+{
+    const string source = "# Header\nregex=(.*)\n# Processors\nextraprocessor.count=1\nextraprocessor[0].type: regex\nextraprocessor[0].filename=old\n# Other category\ncustom.tail=keep\n";
+    var edited = new PropertiesDocument(source);
+    edited.RemoveWhere(k => !AdvancedConfiguration.IsProcessorKey(k));
+    edited.Set("extraprocessor[0].filename", "new");
+    string processors = edited.Source + "# New processor\nextraprocessor[1].type=map\nextraprocessor[1].filename=map.csv\n# Ending A\n# Ending B\n";
+    string output = AdvancedConfiguration.Apply(source, "", Rules(), processors);
+    Check(output.Contains("extraprocessor[0].type: regex\n"));
+    Check(output.IndexOf("extraprocessor[1].filename", StringComparison.Ordinal) < output.IndexOf("# Other category", StringComparison.Ordinal));
+    Check(output.IndexOf("# Ending A", StringComparison.Ordinal) < output.IndexOf("# Ending B", StringComparison.Ordinal));
+    Check(output.Split("# Header").Length == 2 && output.Split("# New processor").Length == 2);
+    Check(AdvancedConfiguration.Apply(output, "", Rules(), processors) == output);
+    Check(new PropertiesDocument(output).Get("extraprocessor.count") == "2");
+});
+Test("Layout: unfamiliar keys stay untouched and a missing regex respects file banner", () =>
+{
+    var doc = new PropertiesDocument("# Banner\ntoken.count=0\ncustom.token[0]=private\n");
+    doc.Set("regex", "literal");
+    Check(doc.Source.StartsWith("# Banner\nregex=literal\ntoken.count=0\n"));
+    doc.Set("private.foo", "new");
+    Check(doc.Source.EndsWith("custom.token[0]=private\nprivate.foo=new\n"));
+    var cr = new PropertiesDocument("token.count=0\revent.name=Name\r");
+    cr.Set("token[0].name", "Token");
+    Check(!cr.Source.Contains('\n'));
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");
