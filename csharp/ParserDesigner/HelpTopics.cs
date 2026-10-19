@@ -6,6 +6,17 @@ internal static class HelpTopics
 {
     public static readonly HelpTopic[] All =
     [
+        new("assistance", "Cross-platform: parser suggestions and regex elements", """
+The Avalonia edition provides Suggest parser: paste 2–200 events, one per line, then Generate and validate. All inference runs locally without uploading logs. Review the .properties proposal and sample coverage before using it. Applying replaces the working draft only after confirmation; Save writes it to disk.
+
+Whitespace-separated and key=value fields, including quoted values, are supported. Similar structures yield a main regex and tokens. Different structures yield ordered alternatives in a default submessage. Known keys suggest event fields; unknown fields use up to six custom-string slots. Textual severity labels use conventional mappings that require review. Numeric severity scales, extra processor files and timestamp formats require manual configuration. Matching all supplied samples does not prove correctness on unseen events.
+
+In Event mapping, snippets show raw tokens from the first match of the working regex and Message. Repeated groups use their last capture. Hover for more text. String constants can be displayed, but general ArcSight operations, submessage overrides and conversions are not executed by this preview.
+
+Press F5 and open Regex elements. Use the Element arrows, select a row or click inside the regex on that tab. The selected source element and its text spans are highlighted, including literals, classes, quantifiers and groups. Repeated elements may have multiple captures. Zero-length assertions show positions; skipped alternatives have no captures.
+
+Element stepping follows source order and the final first match, not internal backtracking. When there is no complete match, there are no final captures. Unsupported constructs (backreferences, named/balancing groups, conditionals, inline flags/comments and nested classes) are explained in Diagnostics; capture debug remains available.
+"""),
         new("start", "Getting started: from log to event", """
 A parser describes how to turn original log text into a structured ArcSight event. The regex recognizes text, tokens name captured values, and mappings assign them to event.* fields.
 

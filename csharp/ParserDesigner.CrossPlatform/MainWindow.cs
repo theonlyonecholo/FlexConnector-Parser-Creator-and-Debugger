@@ -38,11 +38,14 @@ internal sealed class MainWindow : Window
     private DebugResult? result;
     private IReadOnlyList<RegexGroupRegion> groups = [];
     private readonly TabControl tabs;
+    private readonly ListBox elements = new();
+    private IReadOnlyList<RegexElement> elementResults = [];
+    private bool selectingElement;
     internal bool IsDirty => Source.Text != savedSource || Pattern.Text != savedPattern;
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.0.1", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.1.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -59,6 +62,7 @@ internal sealed class MainWindow : Window
             Command("Save", () => SaveAsync(false), "Save configuration and optionally synchronize the working regex. Ctrl+S."),
             Command("Save as…", () => SaveAsync(true), "Save the parser to another file."),
             Command("Load message…", LoadMessageAsync, "Load one text file into Message."),
+            Command("Suggest parser…", SuggestAsync, "Build an offline parser draft from multiple sample logs and validate its coverage."),
             Command("Tokens…", EditTokensAsync, "Create named tokens and formats from capturing groups."),
             Command("Submessages…", EditSubmessagesAsync, "Edit message IDs, ordered body patterns and mappings."),
             Command("Event mapping…", EditMappingAsync, "Assign tokens, constants or expressions to event fields."),
@@ -82,18 +86,19 @@ internal sealed class MainWindow : Window
         Ui.Tip(Source, "Java properties syntax. Backslashes are doubled here. Changes remain in memory until Save.");
         Ui.Tip(Message, "Paste a sample log. Captured tokens use distinct colors; selected captures are blue.");
         Ui.Tip(captures, "Match / group / repeated capture / zero-based UTF-16 position / length / value. Click to highlight.");
-        var actions = Ui.Bar(Command("Test / Debug · F5", AnalyzeAsync, "Inspect matches and repeated captures, not internal backtracking."),
+        var actions = Ui.Bar(Command("Test / Debug · F5", AnalyzeAsync, "Inspect regex elements and captures from the final match; this is not an internal backtracking trace."),
+            Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)),
             Ui.Button("Stop", Stop, "Cancel the preview; a running regex is bounded by its timeout."),
-            Ui.Button("◀ Capture", () => MoveCapture(-1)), Ui.Button("Capture ▶", () => MoveCapture(1)),
             Command("Regex → Configuration", () => { WritePattern(); return Task.CompletedTask; }, "Escape and write the regex property without regenerating tokens."),
             Command("Configuration → Regex", ReadPatternAsync, "Decode the regex property, replacing the working expression."));
         tabs = new TabControl
         {
             ItemsSource = new[]
             {
-                new TabItem { Header = "Configuration .properties", Content = Source },
-                new TabItem { Header = "Regex captures", Content = captures },
-                new TabItem { Header = "Diagnostics", Content = report }
+                new TabItem { Header = Ui.Label("Configuration .properties", 14), Content = Source },
+                new TabItem { Header = Ui.Label("Regex elements", 14), Content = elements },
+                new TabItem { Header = Ui.Label("Regex captures", 14), Content = Ui.Rows("Auto,*", Ui.Bar(Ui.Button("◀ Capture", () => MoveCapture(-1)), Ui.Button("Capture ▶", () => MoveCapture(1))), captures) },
+                new TabItem { Header = Ui.Label("Diagnostics", 14), Content = report }
             }
         };
         var editors = Ui.Rows("Auto,90,Auto,66,Auto,Auto,Auto,*",
@@ -106,6 +111,7 @@ internal sealed class MainWindow : Window
         Pattern.TextChanged += (_, _) => { UpdateTitle(); Invalidate(); };
         Message.TextChanged += (_, _) => Invalidate();
         Pattern.TextArea.Caret.PositionChanged += (_, _) => HighlightGroup();
+        elements.SelectionChanged += (_, _) => SelectElement();
         captures.SelectionChanged += (_, _) => Paint(captures.SelectedItem is CaptureItem item ? item.Row : null);
         debounce.Tick += async (_, _) => { debounce.Stop(); await AnalyzeAsync(); };
         Opened += async (_, _) => await AnalyzeAsync();
@@ -144,7 +150,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.0.1";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.1.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
@@ -156,6 +162,8 @@ internal sealed class MainWindow : Window
         result = null;
         painter.Paint(Message, []);
         captures.ItemsSource = null;
+        elementResults = [];
+        elements.ItemsSource = null;
         if (loading || closing)
             return;
         status.Text = "Preview out of date. Press F5 to evaluate.";
@@ -186,14 +194,18 @@ internal sealed class MainWindow : Window
         {
             await worker.WaitAsync(cancellation);
             DebugResult analyzed;
+            ElementDebugResult elementDebug;
             try
             {
                 analyzed = await Task.Run(() => RegexDebugger.Analyze(pattern, text, options, full, trimValue, timeoutMs, cancellation), cancellation);
+                elementDebug = await Task.Run(() => RegexElementDebugger.Analyze(pattern, text, options, full, trimValue, timeoutMs), cancellation);
             }
             finally { worker.Release(); }
             if (closing || current != revision || cancellation.IsCancellationRequested)
                 return;
             result = analyzed;
+            elementResults = elementDebug.Elements;
+            elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length})  {e.Expression}  → " + (e.Captures.Count == 0 ? "no capture" : string.Join(", ", e.Captures.Take(12).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
             groups = RegexGroupMap.Build(pattern);
             PropertiesDocument? doc = null;
             string diagnostics = "Engine: .NET, not Java. Debug shows captures, not backtracking. Positions are UTF-16 indices.\nPreview switches are not saved to the parser.\n";
@@ -222,6 +234,7 @@ internal sealed class MainWindow : Window
                     catch (FormatException ex) { diagnostics += ex.Message + "\n"; }
             }
             report.Text = diagnostics;
+            report.Text += "\nElement debugger: " + elementDebug.Status;
             Paint();
         }
         catch (OperationCanceledException) { }
@@ -238,6 +251,16 @@ internal sealed class MainWindow : Window
     }
     private void HighlightGroup()
     {
+        if (selectingElement)
+            return;
+        if (tabs.SelectedIndex == 1 && elementResults.Count > 0)
+        {
+            int caret = Pattern.CaretOffset;
+            var selectedElement = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
+            if (selectedElement is not null)
+                elements.SelectedIndex = elementResults.ToList().IndexOf(selectedElement);
+            return;
+        }
         if (result is null)
             return;
         int position = Pattern.CaretOffset;
@@ -381,9 +404,51 @@ internal sealed class MainWindow : Window
     }
     private async Task EditMappingAsync()
     {
-        string? updated = await new MappingDialog(Source.Text).ShowDialog<string?>(this);
+        string? updated = await new MappingDialog(Source.Text, Message.Text, Pattern.Text, Options, entire.IsChecked == true, trim.IsChecked == true, (int)(timeout.Value ?? 250)).ShowDialog<string?>(this);
         if (updated is not null)
             Ui.Replace(Source, updated);
+    }
+    private async Task SuggestAsync()
+    {
+        string? proposal = await new SuggestParserDialog(Message.Text).ShowDialog<string?>(this);
+        if (proposal is null)
+            return;
+        if (await Ui.Ask(this, "Use proposed parser", "Replace the working configuration and regex with the generated draft? Your file is unchanged until Save.", "Replace", "Cancel") != "Replace")
+            return;
+        Ui.Replace(Source, proposal);
+        Ui.Replace(Pattern, new PropertiesDocument(proposal).Get("regex"));
+    }
+    private void MoveElement(int direction)
+    {
+        tabs.SelectedIndex = 1;
+        if (elementResults.Count == 0)
+        {
+            status.Text = "No element preview. Run F5 and check Diagnostics for unsupported syntax or errors.";
+            return;
+        }
+        elements.SelectedIndex = Math.Clamp(elements.SelectedIndex < 0 ? 0 : elements.SelectedIndex + direction, 0, elementResults.Count - 1);
+        elements.ScrollIntoView(elements.SelectedItem!);
+    }
+    private void SelectElement()
+    {
+        if (elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
+            return;
+        var element = elementResults[elements.SelectedIndex];
+        selectingElement = true;
+        try
+        {
+            Pattern.Select(element.Start, element.Length);
+        }
+        finally { selectingElement = false; }
+        painter.Paint(Message, element.Captures.Select(s => new Highlight(s.Index, s.Length, 0, true)));
+        if (element.Captures.FirstOrDefault() is { } first)
+        {
+            Message.Select(first.Index, first.Length);
+            Message.ScrollToLine(Message.Document.GetLineByOffset(first.Index).LineNumber);
+        }
+        else
+            Message.Select(0, 0);
+        status.Text = $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — " + (element.Captures.Count == 0 ? "no final capture (unmatched branch or no complete match)" : $"{element.Captures.Count} capture(s); first position {element.Captures[0].Index}, length {element.Captures[0].Length}. Zero length means an assertion or empty match.");
     }
     private async Task EditAdvancedAsync()
     {

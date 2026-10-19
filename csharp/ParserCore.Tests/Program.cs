@@ -510,4 +510,81 @@ Test("Event mapping: diagnostics and custom expressions", () =>
     Check(new PropertiesDocument(EventMapping.Apply(source, [new("event.myCustomField", expression)])).Get("event.myCustomField") == expression);
     Check(EventMapping.Fields["event.deviceCustomNumber3"] == "Long" && EventMapping.Fields["event.destinationAddress"] == "IPAddress");
 });
+Test("Suggestion: typed key values, quoting and unseen events", () =>
+{
+    var proposal = ParserSuggester.Generate("user=alice src=10.0.0.1 dport=443 msg=\"hello world\"\nuser=bob src=10.0.0.2 dport=80 msg=\"bye world\"");
+    var doc = new PropertiesDocument(proposal.Source);
+    Check(doc.Get("token.count") == "4");
+    Check(doc.Get("token[1].type") == "IPAddress" && doc.Get("token[2].type") == "Integer");
+    Check(new ParserEvaluator(proposal.Source).Evaluate("user=carol src=10.0.0.3 dport=8080 msg=\"new text\"").Success);
+    Check(!new ParserEvaluator(proposal.Source).Evaluate("unrelated line").Success);
+    Check(!char.IsWhiteSpace(proposal.Source[0]));
+});
+Test("Suggestion: alternative submessages and coverage", () =>
+{
+    var proposal = ParserSuggester.Generate("LOGIN user=alice result=ok\nLOGIN user=bob result=failed\nCONNECT host=server dport=443\nCONNECT host=proxy dport=80");
+    var parser = new ParserEvaluator(proposal.Source);
+    Check(new PropertiesDocument(proposal.Source).Get("submessage[0].pattern.count") == "2");
+    Check(parser.Evaluate("LOGIN user=carol result=ok").UsedPattern == 0);
+    Check(parser.Evaluate("CONNECT host=other dport=53").UsedPattern == 1);
+    Check(!parser.Evaluate("DELETE everything").Success);
+});
+Test("Suggestion: constant logs, escaping and rejected samples", () =>
+{
+    var proposal = ParserSuggester.Generate("[ready] server.up\n[ready] server.up");
+    Check(new ParserEvaluator(proposal.Source).Evaluate("[ready] server.up").Success);
+    Check(!new ParserEvaluator(proposal.Source).Evaluate("ready serverXup").Success);
+    Throws<FormatException>(() => ParserSuggester.Generate("only one"));
+    Throws<FormatException>(() => ParserSuggester.Generate(new string('x', 250001)));
+    Throws<FormatException>(() => ParserSuggester.Generate("msg=\"unclosed\nmsg=\"also unclosed"));
+});
+Test("Elements: literals, quantifiers, anchors and trim offsets", () =>
+{
+    var result = RegexElementDebugger.Analyze(@"^id=(\d+)$", "  id=123\t", full: true, trim: true);
+    Check(result.Elements.Single(e => e.Expression == "i").Captures.Single() == new TextSpan(2, 1));
+    Check(result.Elements.Single(e => e.Expression == @"\d+").Captures.Single() == new TextSpan(5, 3));
+    Check(result.Elements.Single(e => e.Expression == "$").Captures.Single() == new TextSpan(8, 0));
+});
+Test("Elements: alternatives, lookahead and repeated groups", () =>
+{
+    var result = RegexElementDebugger.Analyze(@"(?=ab)(?:(a)b)+|xyz", "abab", full: true);
+    Check(result.Elements.Single(e => e.Expression == "a" && e.Start > 5).Captures.Count == 2);
+    Check(result.Elements.Single(e => e.Expression == "x").Captures.Count == 0);
+    Check(result.Elements.Single(e => e.Expression == "(?=ab)").Captures.Single().Length == 0);
+});
+Test("Elements: classes, escaped delimiters and lazy quantifiers", () =>
+{
+    var result = RegexElementDebugger.Analyze(@"\[[a-z]{2,4}?\]\s+\p{L}+", "[ab] čaj", full: true);
+    Check(result.Elements.Single(e => e.Expression == "[a-z]{2,4}?").Captures.Single() == new TextSpan(1, 2));
+    Check(result.Elements.Single(e => e.Expression == @"\p{L}+").Captures.Single() == new TextSpan(5, 3));
+});
+Test("Elements: unsupported constructs and failures are explicit", () =>
+{
+    Check(RegexElementDebugger.Analyze(@"(a)\1", "aa").Elements.Count == 0);
+    Check(RegexElementDebugger.Analyze("(?x)a b", "ab").Elements.Count == 0);
+    Check(RegexElementDebugger.Analyze("(", "a").Elements.Count == 0);
+    var mismatch = RegexElementDebugger.Analyze("abc", "abd", full: true);
+    Check(mismatch.Status.StartsWith("No complete match") && mismatch.Elements.All(e => e.Captures.Count == 0));
+});
+Test("Suggestion: severity conventions and cancellation", () =>
+{
+    var proposal = ParserSuggester.Generate("severity=ERROR user=alice\nseverity=INFO user=bob");
+    var doc = new PropertiesDocument(proposal.Source);
+    Check(doc.Get("severity.map.high.if.deviceSeverity") == "ERROR");
+    Check(doc.Get("severity.map.low.if.deviceSeverity") == "INFO");
+    Check(doc.Get("token[0].name") == "Severity");
+    var numeric = ParserSuggester.Generate("severity=1\nseverity=2");
+    Check(!new PropertiesDocument(numeric.Source).Values.Keys.Any(k => k.StartsWith("severity.map.")));
+    using var cancelled = new CancellationTokenSource();
+    cancelled.Cancel();
+    Throws<OperationCanceledException>(() => ParserSuggester.Generate("a\nb", cancelled.Token));
+});
+Test("Suggestion: positional variables and custom-field overflow", () =>
+{
+    var proposal = ParserSuggester.Generate("LOGIN alice 123\nLOGIN bob 456");
+    Check(new ParserEvaluator(proposal.Source).Evaluate("LOGIN carol 789").Success);
+    var overflow = ParserSuggester.Generate("a=1 b=2 c=3 d=4 e=5 f=6 g=7\na=2 b=3 c=4 d=5 e=6 f=7 g=8");
+    Check(new PropertiesDocument(overflow.Source).Get("token.count") == "6");
+    Check(overflow.Report.Contains("without capture"));
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

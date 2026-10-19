@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0 — 2026-10-19
+
+- Added offline parser proposals from sample logs, with tokens, inferred event fields,
+  ordered submessage alternatives, conventional textual severity mappings and sample coverage.
+- Added raw token snippets and string-constant previews to event mapping.
+- Added source-order regex element navigation with message highlights and explicit unsupported-syntax diagnostics.
+- Added regression tests and a guide describing inference assumptions and debugging limits.
+
 ## 2.0.1 — 2026-10-14
 
 - Added visible borders and inner padding to message, regex and configuration editors.

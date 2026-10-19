@@ -1,6 +1,6 @@
-# Cross-platform desktop edition — 2.0.1
+# Cross-platform desktop edition — 2.1.0
 
-This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.1.
+This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.1.0.
 It is a native desktop application, not a website or a Wine wrapper. The existing
 WinForms edition remains available in its separate Windows solution.
 
@@ -84,7 +84,7 @@ The release was checked on Windows and Ubuntu 26.04 LTS x64 under WSLg.
 Tests exercise real native controls: group highlighting, 100-step undo/redo,
 searchable help, token snippets/formats, mapping/severity export, submessage
 editing, batch routing, filters, selection retention and stale progress handling.
-The existing 50 core regressions also cover parser semantics and file round trips.
+The 59 core regressions cover parser semantics, file round trips, parser suggestions and regex-element instrumentation. See [Parser assistance](PARSER_ASSISTANCE.md) for the new workflows.
 Native file pickers use each operating system's desktop integration; picker clicks
 are not automated by the regression executable.
 

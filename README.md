@@ -1,11 +1,14 @@
 # ArcSight FlexConnector Parser Designer
 
+Version 2.1 adds offline parser suggestions from logs, event mapping snippets and regex-element navigation.
+See [Parser assistance](docs/PARSER_ASSISTANCE.md) for usage and supported syntax.
+
 A cross-platform desktop workbench for authoring ArcSight FlexConnector regex parsers.
 Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.0.1**.
+help, source comments and documentation are English. Current release: **2.1.0**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.
@@ -131,11 +134,6 @@ scripts/verify-cross-platform.*        Avalonia verification (PowerShell/Bash)
 scripts/package-cross-platform.ps1     Self-contained platform packaging
 app/                      Compiled application in prepared distributions
 ```
-
-## Ubuntu
-This might help
-**chmod +x ArcSight.ParserDesigner.CrossPlatform
-./ArcSight.ParserDesigner.CrossPlatform**
 
 This project is not presented as an official ArcSight product. A repository
 license has not been declared; licensing and redistribution of reference
