@@ -40,12 +40,13 @@ internal sealed class MainWindow : Window
     private readonly TabControl tabs;
     private readonly ListBox elements = new();
     private IReadOnlyList<RegexElement> elementResults = [];
+    private ElementDebugResult? elementPreview;
     private bool selectingElement;
     internal bool IsDirty => Source.Text != savedSource || Pattern.Text != savedPattern;
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.2.1", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.3.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -150,7 +151,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.2.1";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.3.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
@@ -163,6 +164,7 @@ internal sealed class MainWindow : Window
         painter.Paint(Message, []);
         captures.ItemsSource = null;
         elementResults = [];
+        elementPreview = null;
         elements.ItemsSource = null;
         if (loading || closing)
             return;
@@ -198,13 +200,14 @@ internal sealed class MainWindow : Window
             try
             {
                 analyzed = await Task.Run(() => RegexDebugger.Analyze(pattern, text, options, full, trimValue, timeoutMs, cancellation), cancellation);
-                elementDebug = await Task.Run(() => RegexElementDebugger.Analyze(pattern, text, options, full, trimValue, timeoutMs), cancellation);
+                elementDebug = await Task.Run(() => RegexElementDebugger.Analyze(pattern, text, options, full, trimValue, timeoutMs, cancellation), cancellation);
             }
             finally { worker.Release(); }
             if (closing || current != revision || cancellation.IsCancellationRequested)
                 return;
             result = analyzed;
             elementResults = elementDebug.Elements;
+            elementPreview = elementDebug;
             elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length})  {e.Expression}  → " + (e.Captures.Count == 0 ? "no capture" : string.Join(", ", e.Captures.Take(12).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
             groups = RegexGroupMap.Build(pattern);
             PropertiesDocument? doc = null;
@@ -216,6 +219,8 @@ internal sealed class MainWindow : Window
             catch (FormatException ex) { diagnostics += ex.Message + "\n"; }
             captures.ItemsSource = analyzed.Rows.Select(row => new CaptureItem(row, row.Group > 0 ? doc?.Get($"token[{row.Group - 1}].name") ?? "" : "Entire match")).ToArray();
             status.Text = analyzed.Status + $" ({analyzed.Milliseconds:F1} ms)";
+            if (elementDebug.IsPartial)
+                status.Text = elementDebug.Summary;
             if (analyzed.Error is not null)
                 diagnostics += analyzed.Error + $"\nRegex error position: {analyzed.ErrorOffset}\n";
             if (doc is not null)
@@ -238,10 +243,15 @@ internal sealed class MainWindow : Window
             Paint();
         }
         catch (OperationCanceledException) { }
-        catch (Exception ex) { if (!closing && current == revision) { status.Text = ex.Message; result = null; Paint(); } }
+        catch (Exception ex) { if (!closing && current == revision) { status.Text = ex.Message; result = null; elementPreview = null; Paint(); } }
     }
     private void Paint(DebugRow? selected = null, int? group = null)
     {
+        if (elementPreview is { IsPartial: true, PartialSpan: { } span })
+        {
+            painter.Paint(Message, [new Highlight(span.Index, span.Length, 1)]);
+            return;
+        }
         painter.Paint(Message, result?.Rows.Where(r => r.Success).Select(r => new Highlight(r.Index, r.Length, r.Group == 0 ? 4 : r.Group - 1, r == selected || r.Group == group)) ?? []);
         if (selected is { Success: true, Index: >= 0 })
         {
@@ -253,7 +263,7 @@ internal sealed class MainWindow : Window
     {
         if (selectingElement)
             return;
-        if (tabs.SelectedIndex == 1 && elementResults.Count > 0)
+        if ((tabs.SelectedIndex == 1 || elementPreview?.IsPartial == true) && elementResults.Count > 0)
         {
             int caret = Pattern.CaretOffset;
             var selectedElement = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
@@ -448,7 +458,7 @@ internal sealed class MainWindow : Window
         }
         else
             Message.Select(0, 0);
-        status.Text = $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — " + (element.Captures.Count == 0 ? "no final capture (unmatched branch or no complete match)" : $"{element.Captures.Count} capture(s); first position {element.Captures[0].Index}, length {element.Captures[0].Length}. Zero length means an assertion or empty match.");
+        status.Text = (elementPreview?.IsPartial == true ? "PARTIAL · full match failed · " : "") + $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — " + (element.Captures.Count == 0 ? "no capture in this preview" : $"{element.Captures.Count} capture(s); first position {element.Captures[0].Index}, length {element.Captures[0].Length}. Zero length means an assertion or empty match.");
     }
     private async Task EditAdvancedAsync()
     {

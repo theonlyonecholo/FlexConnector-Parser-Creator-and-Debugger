@@ -1,6 +1,6 @@
 # ArcSight FlexConnector Parser Designer
 
-Version 2.2 adds a redesigned submessage workbench with regex-element navigation and independent pattern previews.
+Version 2.3 adds partial regex previews in the main window and submessage workbench, with highlighted text and element navigation when the complete regex fails.
 It also includes offline parser suggestions from logs and event mapping snippets.
 See [Parser assistance](docs/PARSER_ASSISTANCE.md) for usage and supported syntax.
 
@@ -9,7 +9,7 @@ Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.2.1**.
+help, source comments and documentation are English. Current release: **2.3.0**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.

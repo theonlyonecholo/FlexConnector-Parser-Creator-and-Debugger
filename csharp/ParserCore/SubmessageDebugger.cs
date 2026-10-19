@@ -25,7 +25,7 @@ public static class SubmessageDebugger
         cancellation.ThrowIfCancellationRequested();
         var captures = RegexDebugger.Analyze(regex, text, fullEvent: true, trim: trim, cancellation: cancellation);
         cancellation.ThrowIfCancellationRequested();
-        var elements = RegexElementDebugger.Analyze(regex, text, full: true, trim: trim);
+        var elements = RegexElementDebugger.Analyze(regex, text, full: true, trim: trim, cancellation: cancellation);
         cancellation.ThrowIfCancellationRequested();
         captures = captures with
         {
@@ -34,6 +34,11 @@ public static class SubmessageDebugger
         };
         elements = elements with
         {
+            PartialSpan = elements.PartialSpan is { } partial ? partial with
+            {
+                Index = partial.Index + body.Index
+            } : null,
+            Status = elements.IsPartial ? "Body-relative details: " + elements.Status : elements.Status,
             Elements = elements.Elements.Select(e => e with
             {
                 Captures = e.Captures.Select(s => s with { Index = s.Index + body.Index }).ToArray()
@@ -42,6 +47,6 @@ public static class SubmessageDebugger
         bool used = route.UsedSubmessage == message && route.UsedPattern == pattern;
         string status = used ? "Selected pattern is the active route."
             : "Independent selected-pattern preview: this pattern was NOT used by routing (ID or pattern order may differ).";
-        return new(route, captures, elements, status + " " + (captures.Error ?? captures.Status));
+        return new(route, captures, elements, status + " " + (elements.IsPartial ? elements.Summary : captures.Error ?? captures.Status));
     }
 }

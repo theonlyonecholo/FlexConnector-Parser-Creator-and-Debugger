@@ -4,16 +4,24 @@ using System.Text.RegularExpressions;
 namespace ParserCore;
 
 public sealed record RegexElement(int Start, int Length, string Expression, IReadOnlyList<TextSpan> Captures);
-public sealed record ElementDebugResult(IReadOnlyList<RegexElement> Elements, string Status);
+public sealed record ElementDebugResult(IReadOnlyList<RegexElement> Elements, string Status,
+    bool IsPartial = false, TextSpan? PartialSpan = null, int? RegexBoundary = null)
+{
+    public string Summary => IsPartial && PartialSpan is { } span
+        ? $"PARTIAL only: message[{span.Index}..{span.Index + span.Length}), regex boundary {RegexBoundary}. Full match failed. Inspect Regex elements."
+        : Status;
+}
 
-/// <summary>Instruments regex atoms to show captures from the final successful match, not backtracking.</summary>
+/// <summary>Maps regex atoms to successful captures or a bounded partial-prefix hypothesis, not a backtracking trace.</summary>
 public static class RegexElementDebugger
 {
     public static ElementDebugResult Analyze(string pattern, string input, RegexOptions options = RegexOptions.None,
-        bool full = false, bool trim = false, int timeoutMs = 250)
+        bool full = false, bool trim = false, int timeoutMs = 250, CancellationToken cancellation = default)
     {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            cancellation.ThrowIfCancellationRequested();
             if (pattern.Length > 8000 || input.Length > RegexDebugger.MaxInputLength)
                 throw new FormatException("Element preview limit: 8,000 regex characters and 250,000 message characters.");
             if ((options & ~(RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline | RegexOptions.CultureInvariant)) != 0)
@@ -28,6 +36,41 @@ public static class RegexElementDebugger
             var match = new Regex(Wrap(instrumented), options | RegexOptions.CultureInvariant, limit).Match(text);
             if (original.Success != match.Success || original.Index != match.Index || original.Length != match.Length)
                 throw new FormatException("Instrumentation changed the match; element preview is unavailable for this expression.");
+            bool partial = false, limited = false;
+            int? boundary = null;
+            if (!match.Success)
+            {
+                int score = -1;
+                foreach (var candidate in syntax.Candidates)
+                {
+                    cancellation.ThrowIfCancellationRequested();
+                    int remaining = 2000 - (int)timer.ElapsedMilliseconds;
+                    if (remaining <= 0)
+                    {
+                        limited = true;
+                        break;
+                    }
+                    try
+                    {
+                        // A prefix must start at the same allowed position as the original expression.
+                        // End-of-input is deliberately not required: the rest is the unmatched suffix.
+                        string expression = full ? @"\A(?:" + candidate.Regex + ")" : "(?:" + candidate.Regex + ")";
+                        var probe = new Regex(expression, options | RegexOptions.CultureInvariant,
+                            TimeSpan.FromMilliseconds(Math.Min(limit.TotalMilliseconds, remaining))).Match(text);
+                        if (!probe.Success || probe.Length == 0)
+                            continue;
+                        int progress = syntax.Nodes.Count(n => probe.Groups[n.Name].Success);
+                        if (partial && (progress < score || progress == score &&
+                            (probe.Index > match.Index || probe.Index == match.Index && probe.Length < match.Length)))
+                            continue;
+                        match = probe;
+                        score = progress;
+                        boundary = candidate.Boundary;
+                        partial = true;
+                    }
+                    catch (RegexMatchTimeoutException) { limited = true; break; }
+                }
+            }
             int count = 0;
             var elements = syntax.Nodes.OrderBy(n => n.Start).ThenByDescending(n => n.Length).Select(n =>
             {
@@ -36,9 +79,14 @@ public static class RegexElementDebugger
                 count += spans.Length;
                 return new RegexElement(n.Start, n.Length, pattern.Substring(n.Start, n.Length), spans);
             }).ToArray();
+            if (partial)
+                return new(elements, $"PARTIAL preview only: text[{match.Index + offset}..{match.Index + offset + match.Length}), regex prefix boundary {boundary}. The complete regex did NOT match. "
+                    + "This is a prefix hypothesis, not the engine's first failure or backtracking trace. Quantifiers are kept intact; incomplete repeated groups and lookarounds are not expanded. "
+                    + (limited ? "Search stopped at the time limit; a better prefix may exist." : ""), true,
+                    new(match.Index + offset, match.Length), boundary);
             return new(elements, match.Success
                 ? "First match: source-order elements and their final captures. Empty spans are assertions; skipped branches have no capture. Not a backtracking trace." + (count >= 5000 ? " Capture display limited to 5,000 spans." : "")
-                : "No complete match. No final element captures are available; this does not identify the first failing atom.");
+                : "No complete match and no consuming partial prefix found at supported element boundaries." + (limited ? " Prefix search reached its time limit." : ""));
         }
         catch (Exception ex) when (ex is ArgumentException or FormatException or RegexMatchTimeoutException)
         {
@@ -48,31 +96,40 @@ public static class RegexElementDebugger
 
     private sealed class Instrumenter(string source)
     {
+        internal sealed record Candidate(string Regex, int Boundary);
+        private sealed record SequenceResult(string Regex, List<Candidate> Candidates);
+        public IReadOnlyList<Candidate> Candidates { get; private set; } = [];
         public readonly List<(int Start, int Length, string Name)> Nodes = [];
         private int position, depth;
         private readonly string prefix = "Trace" + Guid.NewGuid().ToString("N");
         public string Parse()
         {
-            string result = Sequence();
+            var result = Sequence();
             if (position != source.Length)
                 throw new FormatException("Unexpected closing parenthesis.");
-            return result;
+            Candidates = result.Candidates;
+            return result.Regex;
         }
-        private string Sequence()
+        private SequenceResult Sequence()
         {
             if (++depth > 64)
                 throw new FormatException("Element preview supports at most 64 nested groups.");
             var output = new StringBuilder();
+            var branch = new StringBuilder();
+            var candidates = new List<Candidate>();
             while (position < source.Length && source[position] != ')')
             {
                 if (source[position] == '|')
                 {
                     output.Append('|');
+                    branch.Clear();
                     position++;
                     continue;
                 }
                 int start = position;
                 string atom;
+                SequenceResult? children = null;
+                bool canEnterGroup = false;
                 char current = source[position++];
                 if (current == '(')
                 {
@@ -90,10 +147,11 @@ public static class RegexElementDebugger
                         else
                             throw new FormatException("Element preview does not support named/balancing groups, conditionals, comments or inline flags. Capture debug remains available.");
                     }
-                    string inner = Sequence();
+                    children = Sequence();
+                    canEnterGroup = opener is "(" or "(?:";
                     if (position >= source.Length || source[position++] != ')')
                         throw new FormatException("Unclosed group.");
-                    atom = opener + inner + ")";
+                    atom = opener + children.Regex + ")";
                 }
                 else if (current == '[')
                 {
@@ -178,10 +236,15 @@ public static class RegexElementDebugger
                     throw new FormatException("Element preview supports at most 512 elements.");
                 string name = prefix + Nodes.Count;
                 Nodes.Add((start, position - start, name));
-                output.Append("(?<").Append(name).Append('>').Append(atom).Append(')');
+                if (canEnterGroup && position == quantifier && children is not null)
+                    candidates.AddRange(children.Candidates.Select(c => new Candidate(branch + "(?:" + c.Regex + ")", c.Boundary)));
+                string wrapped = "(?<" + name + ">" + atom + ")";
+                output.Append(wrapped);
+                branch.Append(wrapped);
+                candidates.Add(new(branch.ToString(), position));
             }
             depth--;
-            return output.ToString();
+            return new(output.ToString(), candidates);
         }
     }
 }

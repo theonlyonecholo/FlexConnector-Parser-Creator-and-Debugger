@@ -93,6 +93,17 @@ internal static class Checks
         main.Width = 1380;
         main.Height = 980;
 
+        string originalMessage = main.Message.Text;
+        main.Pattern.Text = "abcZ";
+        main.Message.Text = "abcX";
+        await main.AnalyzeAsync();
+        Check(Field<TextBlock>(main, "status").Text!.StartsWith("PARTIAL") && painter.Spans.Any(s => s.Index == 0 && s.Length == 3), "main debugger highlights a partial prefix while reporting full-match failure");
+        await Capture(main, "partial-debug");
+        Click(main, "Element ▶");
+        Check(Field<TextBlock>(main, "status").Text!.StartsWith("PARTIAL") && painter.Spans.Any(s => s.Selected && s.Length == 1), "partial element stepping remains explicitly labeled");
+        main.Message.Text = originalMessage;
+        Field<TabControl>(main, "tabs").SelectedIndex = 0;
+
         main.Pattern.Text = "404";
         await main.AnalyzeAsync();
         Check(painter.Spans.Any(s => s.Index == 7 && s.Length == 3), "regex without groups still highlights matching text");
@@ -203,6 +214,12 @@ internal static class Checks
         await sub.TestAsync();
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0, "submessage undo and retest restore capture highlights");
         string validPattern = fields["regex"].Text;
+        fields["regex"].Text += " REQUIRED";
+        await sub.TestAsync();
+        Check(Field<TextBlock>(sub, "previewStatus").Text!.Contains("PARTIAL") && Field<TextBlock>(sub, "routeStatus").Text!.Contains("SubmessageMismatch"), "partial submessage highlighting does not convert failed routing to success");
+        Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Index == bodyStart && s.Length > 1), "partial submessage prefix uses full-log offsets");
+        await Capture(sub, "submessages-partial");
+        fields["regex"].Text = validPattern;
         Field<CheckBox>(sub, "automatic").IsChecked = true;
         fields["regex"].Text = "(";
         await Until(() => Field<TextBlock>(sub, "previewStatus").Text!.StartsWith("Unable to test draft"));

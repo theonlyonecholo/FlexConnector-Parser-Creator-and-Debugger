@@ -26,7 +26,15 @@ Changing the mapping expression refreshes the snippet. String constants are disp
 
 Press F5, open **Regex elements**, then use **Element ▶ / ◀ Element**, select a list row or click inside the regex while that tab is selected. The application selects the corresponding regex source and highlights matching spans in Message. Elements include individual literals, escapes, character classes, quantified atoms, groups and assertions.
 
-Repeated atoms may highlight multiple spans. Assertions and empty matches have zero-length positions and therefore no colored characters. Skipped alternatives have no capture. Source-order navigation describes the final first match; it is not execution-order stepping or internal backtracking. If there is no complete match, final captures are unavailable; the app does not falsely identify a first failing atom.
+Repeated atoms may highlight multiple spans. Assertions and empty matches have zero-length positions and therefore no colored characters. Skipped alternatives have no capture. Source-order navigation describes the final first match or a partial prefix preview; it is not execution-order stepping or internal backtracking.
+
+### Partial previews (2.3)
+
+When the complete regex fails, the debugger probes supported regex prefixes and may highlight a matching span in orange, marked **PARTIAL**. Open **Regex elements**, click inside the regex, or use the Element arrows to inspect which atoms captured text. For example, `abcZ` against `abcX` highlights `abc`; the final `Z` has no capture. The status reports zero-based UTF-16 text positions and a boundary in the regex source. The ordinary capture table still requires a complete match.
+
+This is a prefix hypothesis, not the engine's first failure or backtracking trace. Prefixes are ranked by captured element count, then earlier text position and longer matched text. The search has a two-second budget and can return a limited result. It never changes actual parser success, token extraction or submessage routing.
+
+With **Entire message**, a prefix starts at the beginning of the tested text; without it, a prefix can be found later, subject to explicit anchors. Trim and submessage-body offsets are preserved in the original message highlights. Unquantified ordinary/noncapturing groups can be explored internally. Quantifiers remain intact: `\d{4}` does not become a two-digit match. Unfinished repeated groups and lookarounds are not expanded. Unsupported syntax and cases without a consuming prefix are explained in Diagnostics. Submessage previews require the main regex to have captured the configured body token.
 
 The bounded instrumentation supports ordinary groups, noncapturing groups, atomic groups, lookarounds, classes, escapes, quantifiers and alternatives. Backreferences, numeric escapes, named/balancing groups, conditionals, inline flags/comments and nested/subtracted character classes are explicitly rejected in element preview; normal capture debugging remains available. Limits: 8,000 regex characters, 512 elements, 64 nested groups and 5,000 displayed spans. Diagnostics explains unsupported syntax and timeouts.
 
@@ -50,7 +58,7 @@ Press F5 or Test log with these changes to test the draft. Automatic preview is 
 
 The persistent Actual route label identifies the winning definition/pattern. Independently, the selected pattern is evaluated against the complete captured body token, even if routing selected another pattern or ID. A notice explicitly says when the selected pattern was NOT used by routing. This lets you tune later alternatives without reordering or changing production routing.
 
-Click a capture row or a group in the regex to highlight its original-log span. Open Regex elements or use the Element arrows to step through literals, classes, quantifiers, groups and assertions, selecting the regex source and highlighting corresponding message spans. Trim offsets and the main-header offset are preserved. Long body values are taken from the original input rather than truncated display snippets. Zero-length matches show positions; skipped alternatives have no final capture. The same supported-syntax and final-match limitations described above apply.
+Click a capture row or a group in the regex to highlight its original-log span. Open Regex elements or use the Element arrows to step through literals, classes, quantifiers, groups and assertions, selecting the regex source and highlighting corresponding message spans. Trim offsets and the main-header offset are preserved. Long body values are taken from the original input rather than truncated display snippets. Zero-length matches show positions; skipped alternatives have no final capture. The same supported-syntax and partial-preview limitations described above apply.
 
 Implementation: ParserCore/SubmessageDebugger.cs coordinates route evaluation, selected-pattern capture analysis and element instrumentation. ParserDesigner.CrossPlatform/SubmessagesDialog.cs owns selection, debounce/cancellation, tabs and highlight navigation. No network service or new external dependency is used.
 

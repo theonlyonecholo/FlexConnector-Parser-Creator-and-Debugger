@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.0 — 2026-10-19
+
+- Preview matching regex prefixes when the complete regex fails, in both the main window and submessages.
+- Highlight partial text in orange and navigate individual regex elements while preserving original-log offsets.
+- Keep actual parser matching and routing separate from the explicitly labeled partial hypothesis.
+- Bound prefix probes and cover nested groups, alternatives, quantifiers, anchors, trimming and cancellation with regressions.
+
 ## 2.2.1 — 2026-10-19
 
 - Insert new properties beside their category and indexed siblings instead of at the end of the parser.

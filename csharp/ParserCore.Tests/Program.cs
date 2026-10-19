@@ -564,7 +564,7 @@ Test("Elements: unsupported constructs and failures are explicit", () =>
     Check(RegexElementDebugger.Analyze("(?x)a b", "ab").Elements.Count == 0);
     Check(RegexElementDebugger.Analyze("(", "a").Elements.Count == 0);
     var mismatch = RegexElementDebugger.Analyze("abc", "abd", full: true);
-    Check(mismatch.Status.StartsWith("No complete match") && mismatch.Elements.All(e => e.Captures.Count == 0));
+    Check(mismatch.IsPartial && mismatch.PartialSpan == new TextSpan(0, 2) && mismatch.Elements.Single(e => e.Expression == "c").Captures.Count == 0);
 });
 Test("Suggestion: severity conventions and cancellation", () =>
 {
@@ -705,5 +705,56 @@ Test("Layout: unfamiliar keys stay untouched and a missing regex respects file b
     var cr = new PropertiesDocument("token.count=0\revent.name=Name\r");
     cr.Set("token[0].name", "Token");
     Check(!cr.Source.Contains('\n'));
+});
+Test("Partial debug: nested groups expose completed atoms without inventing full captures", () =>
+{
+    var result = RegexElementDebugger.Analyze(@"^(abc\d+)$", "abX", full: true);
+    Check(result.IsPartial && result.PartialSpan == new TextSpan(0, 2));
+    Check(result.Elements.Single(e => e.Expression == "b").Captures.Single() == new TextSpan(1, 1));
+    Check(result.Elements.Single(e => e.Expression == @"(abc\d+)").Captures.Count == 0);
+});
+Test("Partial debug: progress beats a greedy prefix and supports alternatives", () =>
+{
+    var result = RegexElementDebugger.Analyze(@".*abZ", "xxabY", full: true);
+    Check(result.IsPartial && result.PartialSpan == new TextSpan(0, 4));
+    Check(result.Elements.Single(e => e.Expression == "b").Captures.Single() == new TextSpan(3, 1));
+    var alternate = RegexElementDebugger.Analyze(@"(?:abc|abd)Z", "abdX", full: true);
+    Check(alternate.IsPartial && alternate.PartialSpan == new TextSpan(0, 3));
+    Check(alternate.Elements.Single(e => e.Expression == "d").Captures.Single() == new TextSpan(2, 1));
+});
+Test("Partial debug: trailing input differs from an ordinary substring match", () =>
+{
+    var strict = RegexElementDebugger.Analyze("abc", "abcXYZ", full: true);
+    Check(strict.IsPartial && strict.RegexBoundary == 3 && strict.PartialSpan == new TextSpan(0, 3));
+    Check(!RegexElementDebugger.Analyze("abc", "abcXYZ").IsPartial);
+    var search = RegexElementDebugger.Analyze("abcZ", "ax abcY");
+    Check(search.IsPartial && search.PartialSpan == new TextSpan(3, 3));
+    Check(!RegexElementDebugger.Analyze("abcZ", "xxabcY", full: true).IsPartial);
+});
+Test("Partial debug: quantifier bounds and assertions are not weakened", () =>
+{
+    Check(!RegexElementDebugger.Analyze(@"(ab){2}Z", "abX", full: true).IsPartial);
+    Check(!RegexElementDebugger.Analyze(@"(?=SECRET)abc", "SECX", full: true).IsPartial);
+    Check(!RegexElementDebugger.Analyze(@"\d{4}Z", "12X", full: true).IsPartial);
+    Check(!RegexElementDebugger.Analyze("abc", "", full: true).IsPartial);
+    Check(!RegexElementDebugger.Analyze(@"(a)\1Z", "aaX", full: true).IsPartial);
+});
+Test("Partial debug: trim and Unicode offsets are preserved", () =>
+{
+    var result = RegexElementDebugger.Analyze("😀ABZ", "  😀ABX  ", full: true, trim: true);
+    Check(result.IsPartial && result.PartialSpan == new TextSpan(2, 4));
+    Check(result.Elements.Single(e => e.Expression == "B").Captures.Single() == new TextSpan(5, 1));
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    Throws<OperationCanceledException>(() => RegexElementDebugger.Analyze("abc", "abX", cancellation: cancellation.Token));
+});
+Test("Partial submessage preview retains failed routing and full-log positions", () =>
+{
+    const string source = "regex=id=(\\\\w+) body=(.*)\ntoken.count=2\ntoken[0].name=ID\ntoken[1].name=Body\nsubmessage.token=Body\ntrim.submessage=true\nsubmessage.count=1\nsubmessage[0].pattern.count=1\nsubmessage[0].pattern[0].regex=abcZ\n";
+    const string input = "id=TEST body=  abcX ";
+    var preview = SubmessageDebugger.Analyze(source, input, 0, 0);
+    Check(preview.Route.State == ParseState.SubmessageMismatch && preview.Captures!.Matches.Count == 0);
+    Check(preview.Elements!.IsPartial && preview.Elements.PartialSpan == new TextSpan(input.IndexOf("abc", StringComparison.Ordinal), 3));
+    Check(preview.Status.Contains("PARTIAL"));
 });
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

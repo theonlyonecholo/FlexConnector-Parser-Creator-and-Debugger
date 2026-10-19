@@ -36,6 +36,7 @@ internal sealed class SubmessagesDialog : Window
     private readonly TabControl previewTabs;
     private DebugResult? captureResult;
     private IReadOnlyList<RegexElement> elementResults = [];
+    private ElementDebugResult? elementPreview;
     private bool selectingElement;
     private sealed record CaptureItem(DebugRow Row, string Field)
     {
@@ -170,6 +171,7 @@ internal sealed class SubmessagesDialog : Window
         evaluated = null;
         captureResult = null;
         elementResults = [];
+        elementPreview = null;
         captures.ItemsSource = null;
         elements.ItemsSource = null;
         painter.Paint(sample, []);
@@ -311,6 +313,7 @@ internal sealed class SubmessagesDialog : Window
         routeStatus.Text = "Actual route: " + debug.Route.Route + " · " + debug.Route.State;
         captureResult = debug.Captures;
         elementResults = debug.Elements?.Elements ?? [];
+        elementPreview = debug.Elements;
         result.Text = "ACTUAL ROUTE: " + debug.Route.Route + "\n" + debug.Route.Description + "\n"
             + string.Join("\n", debug.Route.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}"))
             + "\n\nSELECTED PATTERN: " + debug.Status + "\n\nELEMENT PREVIEW: " + (debug.Elements?.Status ?? "Select a pattern with a captured body.");
@@ -326,7 +329,7 @@ internal sealed class SubmessagesDialog : Window
         if (loading || selectingElement || captureResult is null)
             return;
         int caret = fields["regex"].CaretOffset;
-        if (previewTabs.SelectedIndex == 1)
+        if (previewTabs.SelectedIndex == 1 || elementPreview?.IsPartial == true)
         {
             var element = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
             if (element is not null)
@@ -362,9 +365,16 @@ internal sealed class SubmessagesDialog : Window
             result.Text = ex.Message;
         }
     }
-    private void Paint(int? group = null, DebugRow? selectedCapture = null) =>
+    private void Paint(int? group = null, DebugRow? selectedCapture = null)
+    {
+        if (elementPreview is { IsPartial: true, PartialSpan: { } span })
+        {
+            painter.Paint(sample, [new Highlight(span.Index, span.Length, 1)]);
+            return;
+        }
         painter.Paint(sample, captureResult?.Rows.Where(r => r.Success).Select(r =>
             new Highlight(r.Index, r.Length, r.Group == 0 ? 4 : r.Group - 1, r == selectedCapture || r.Group == group)) ?? []);
+    }
     private void HighlightCapture(DebugRow row)
     {
         Paint(selectedCapture: row);
@@ -407,7 +417,7 @@ internal sealed class SubmessagesDialog : Window
             Locate(span.Index, span.Length);
         else
             sample.Select(0, 0);
-        previewStatus.Text = $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — "
+        previewStatus.Text = (elementPreview?.IsPartial == true ? "PARTIAL · full match failed · " : "") + $"Element {elements.SelectedIndex + 1}/{elementResults.Count}: {element.Expression} — "
             + (element.Captures.Count == 0 ? "no final capture" : $"{element.Captures.Count} span(s); first position {element.Captures[0].Index}, length {element.Captures[0].Length}. Zero length means an assertion or empty match.");
     }
 }
