@@ -142,7 +142,6 @@ This might help
 There could also be problem with missing dependencies, you will maybe need to install these two:
 **sudo apt install libice6** and **sudo apt install libsm6**
 
->>>>>>> 255ce45275854da59e874b0cca526906ea4a4b42
 This project is not presented as an official ArcSight product. A repository
 license has not been declared; licensing and redistribution of reference
 material should be resolved by the owner before publishing.
