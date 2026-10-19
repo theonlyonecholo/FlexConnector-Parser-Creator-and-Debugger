@@ -66,7 +66,7 @@ public sealed class SubmessageConfiguration
         return model;
     }
 
-    public string Apply(string source)
+    public string Apply(string source, bool validate = true)
     {
         if (Messages.Count > 1000 || Messages.Sum(m => m.Patterns.Count) > 5000)
             throw new FormatException("The submessage/pattern count limit was exceeded.");
@@ -85,7 +85,7 @@ public sealed class SubmessageConfiguration
         for (int i = 0; i < Messages.Count; i++)
         {
             var message = Messages[i];
-            if (message.Patterns.Count == 0)
+            if (validate && message.Patterns.Count == 0)
                 throw new FormatException($"submessage[{i}] must have at least one pattern.");
             string prefix = $"submessage[{i}].";
             SetIndexed(prefix + "messageid", message.MessageId);
@@ -98,7 +98,8 @@ public sealed class SubmessageConfiguration
         }
         doc.RemoveWhere(k => k.StartsWith("submessage[", StringComparison.Ordinal) && !retained.Contains(k));
         // Validate references and every expression before committing to the editor.
-        _ = new ParserEvaluator(doc.Source);
+        if (validate)
+            _ = new ParserEvaluator(doc.Source);
         return doc.Source;
     }
 

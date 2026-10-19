@@ -767,4 +767,37 @@ Test("Submessage input: configured token, empty capture and missing capture are 
     Check(SubmessageDebugger.Analyze(source.Replace("submessage.token=Body", "submessage.token=ID"), "id=TEST body=abc", 0, 0).BodyText == "TEST");
     Check(SubmessageDebugger.Analyze(source, "id=TEST body=abc", 0, -1).BodyText == "abc");
 });
+Test("Submessage draft: invalid patterns and routing cannot hide a captured body", () =>
+{
+    var doc = new PropertiesDocument(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "examples", "submessages.sdkrfilereader.properties")));
+    const string input = "id=LOGIN body=user=alice result=ok";
+    doc.Set("submessage[1].pattern[0].regex", "(");
+    var model = SubmessageConfiguration.Load(doc.Source);
+    string draft = model.Apply(doc.Source, validate: false);
+    Throws<FormatException>(() => model.Apply(doc.Source));
+    var preview = SubmessageDebugger.Analyze(draft, input, 0, 0);
+    Check(preview.BodyText == "user=alice result=ok" && preview.Captures!.Matches.Count == 1 && preview.Route.State == ParseState.Error);
+    doc.Set("submessage[0].pattern[0].regex", "(");
+    preview = SubmessageDebugger.Analyze(doc.Source, input, 0, 0);
+    Check(preview.BodyText == "user=alice result=ok" && preview.Captures!.Error is not null);
+    doc.Set("submessage.token", "missing");
+    preview = SubmessageDebugger.Analyze(doc.Source, input, 0, 0);
+    Check(preview.BodyText is null && preview.Status.Contains("not declared"));
+});
+Test("Submessage input: pasted EM SPACE separators explain missing TAB matches", () =>
+{
+    var doc = new PropertiesDocument("");
+    doc.Set("regex", @"(header)\t(.*)");
+    doc.Set("token.count", "2");
+    doc.Set("token[0].name", "Header");
+    doc.Set("token[1].name", "Body");
+    doc.Set("submessage.token", "Body");
+    doc.Set("submessage.count", "1");
+    doc.Set("submessage[0].pattern.count", "1");
+    doc.Set("submessage[0].pattern[0].regex", "(.*)");
+    var pasted = SubmessageDebugger.Analyze(doc.Source, "header\u2003\u2003body", 0, 0);
+    Check(pasted.BodyText is null && pasted.Status.Contains("EM SPACE (U+2003)"));
+    Check(SubmessageDebugger.Analyze(doc.Source, "header\tbody", 0, 0).BodyText == "body");
+    Check(SubmessageDebugger.Analyze(doc.Source, "header\t", 0, 0).BodyText == "");
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

@@ -17,7 +17,8 @@ internal sealed class SubmessagesDialog : Window
     private readonly string source;
     private readonly SubmessageConfiguration model;
     private readonly ListBox nodes = new();
-    private readonly TextBox body, idToken, messageId;
+    private readonly ComboBox body, idToken;
+    private readonly TextBox messageId;
     private readonly CheckBox trim, fallback;
     private readonly Dictionary<string, TextEditor> fields = [];
     private readonly TextEditor sample, originalLog, result = Ui.Editor(readOnly: true);
@@ -51,8 +52,22 @@ internal sealed class SubmessagesDialog : Window
         Ui.Setup(this, "Submessages · pattern workbench", 1280, 940);
         MinWidth = 1000;
         MinHeight = 760;
-        body = Ui.Input(model.BodyToken, "Main token containing the body: submessage.token.");
-        idToken = Ui.Input(model.IdToken, "Main token whose value selects the definition: submessage.messageid.token.");
+        string[] declaredTokens = EventMapping.Tokens(source).Keys.ToArray();
+        ComboBox TokenPicker(string value, string hint)
+        {
+            // Retain an unknown configured value so opening the editor never silently replaces it.
+            var picker = new ComboBox
+            {
+                ItemsSource = new[] { "" }.Concat(declaredTokens).Append(value).Distinct(StringComparer.Ordinal).ToArray(),
+                SelectedItem = value,
+                PlaceholderText = "Select a declared token…",
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch
+            };
+            Ui.Tip(picker, hint);
+            return picker;
+        }
+        body = TokenPicker(model.BodyToken, "Declared main token containing the body: submessage.token. An existing unknown value is retained until you select a valid token.");
+        idToken = TokenPicker(model.IdToken, "Declared main token used for routing: submessage.messageid.token. Select the empty entry for no ID token.");
         trim = new()
         {
             Content = "Trim submessage",
@@ -151,11 +166,12 @@ internal sealed class SubmessagesDialog : Window
         nodes.SelectionChanged += (_, _) => SelectNode();
         // TextBox.TextChanged is deferred; observe the property synchronously so loading
         // another node cannot cancel a test started immediately after that load.
-        foreach (var box in new[] { body, idToken, messageId })
-            box.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) Changed(); };
+        messageId.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) Changed(); };
+        body.SelectionChanged += (_, _) => InputChanged();
+        idToken.SelectionChanged += (_, _) => { Changed(); if (!loading && !closed) debounce.Start(); };
         trim.IsCheckedChanged += (_, _) => Changed();
         fallback.IsCheckedChanged += (_, _) => { messageId.IsEnabled = fallback.IsChecked != true; Changed(); };
-        originalLog.TextChanged += (_, _) => Changed();
+        originalLog.TextChanged += (_, _) => InputChanged();
         captures.SelectionChanged += (_, _) => { if (captures.SelectedItem is CaptureItem item) HighlightCapture(item.Row); };
         elements.SelectionChanged += (_, _) => SelectElement();
         automatic.IsCheckedChanged += (_, _) => { debounce.Stop(); if (automatic.IsChecked == true) debounce.Start(); };
@@ -180,8 +196,7 @@ internal sealed class SubmessagesDialog : Window
         captures.ItemsSource = null;
         elements.ItemsSource = null;
         painter.Paint(sample, []);
-        sample.Text = "";
-        bodyStatus.Text = "SUBMESSAGE INPUT · preview out of date; press F5";
+        // Pattern edits invalidate highlights, not the independently extracted main token.
         sample.Select(0, 0);
         previewStatus.Text = "Draft changed. Press F5 to refresh routing and highlights.";
         result.Text = "Draft changed. Test again to refresh the route and field highlights.";
@@ -189,10 +204,20 @@ internal sealed class SubmessagesDialog : Window
         if (!closed && automatic.IsChecked == true)
             debounce.Start();
     }
+    private void InputChanged()
+    {
+        if (loading)
+            return;
+        Changed();
+        sample.Text = "";
+        bodyStatus.Text = "SUBMESSAGE INPUT · extracting selected token…";
+        if (!closed)
+            debounce.Start();
+    }
     private void Store()
     {
-        model.BodyToken = body.Text ?? "";
-        model.IdToken = idToken.Text ?? "";
+        model.BodyToken = body.SelectedItem as string ?? "";
+        model.IdToken = idToken.SelectedItem as string ?? "";
         model.Trim = trim.IsChecked == true;
         if (selected is null)
             return;
@@ -290,15 +315,15 @@ internal sealed class SubmessagesDialog : Window
             Refresh(target, null);
         }
     }
-    internal string BuildSource()
+    internal string BuildSource(bool validate = true)
     {
         Store();
-        return model.Apply(source);
+        return model.Apply(source, validate);
     }
     internal async Task TestAsync()
     {
         debounce.Stop();
-        string configuration = BuildSource(), text = originalLog.Text;
+        string configuration = BuildSource(validate: false), text = originalLog.Text;
         int message = selected?.Message ?? -1, pattern = selected?.Pattern ?? -1;
         string[] names = fields["fields"].Text.Split(',');
         pending?.Cancel();
@@ -319,8 +344,8 @@ internal sealed class SubmessagesDialog : Window
         evaluated = debug.Route;
         sample.Text = debug.BodyText ?? "";
         bodyStatus.Text = debug.BodyText is null
-            ? $"SUBMESSAGE INPUT · token '{body.Text}' was not captured"
-            : $"SUBMESSAGE INPUT · {body.Text} · {debug.BodyText.Length} characters · positions relative to token";
+            ? "SUBMESSAGE INPUT · " + debug.Status
+            : $"SUBMESSAGE INPUT · {body.SelectedItem} · {debug.BodyText.Length} characters · positions relative to token";
         // Core/batch results retain original-log positions. This editor displays only the body token.
         int offset = debug.BodyOffset;
         if (debug.Captures is { } localCaptures)
@@ -354,7 +379,8 @@ internal sealed class SubmessagesDialog : Window
         result.Text = "ACTUAL ROUTE: " + debug.Route.Route + "\n" + debug.Route.Description + "\n"
             + string.Join("\n", debug.Route.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}"))
             + "\n\nSELECTED PATTERN: " + debug.Status + "\n\nELEMENT PREVIEW: " + (debug.Elements?.Status ?? "Select a pattern with a captured body.");
-        previewStatus.Text = debug.Elements?.IsPartial == true ? debug.Elements.Summary : debug.Status;
+        previewStatus.Text = debug.Route.State == ParseState.Error ? "Unable to test draft: " + debug.Route.Description
+            : debug.Elements?.IsPartial == true ? debug.Elements.Summary : debug.Status;
         captures.ItemsSource = captureResult?.Rows.Select(r => new CaptureItem(r,
             r.Group == 0 ? "Entire body match" : r.Group <= names.Length ? names[r.Group - 1].Trim() : "$" + r.Group)).ToArray();
         elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "
@@ -399,6 +425,7 @@ internal sealed class SubmessagesDialog : Window
             if (closed)
                 return;
             previewStatus.Text = "Unable to test draft: " + ex.Message;
+            bodyStatus.Text = "SUBMESSAGE INPUT · " + ex.Message;
             result.Text = ex.Message;
         }
     }

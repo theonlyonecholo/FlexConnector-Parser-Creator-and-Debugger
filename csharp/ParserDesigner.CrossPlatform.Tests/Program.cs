@@ -192,7 +192,9 @@ internal static class Checks
         var logs = LogFile.Read(Path.Combine(AppContext.BaseDirectory, "examples", "submessages.log"));
         var sub = new SubmessagesDialog(source, logs[0].Text, 0, 0);
         var subTask = sub.ShowDialog<string?>(main);
-        await sub.TestAsync();
+        await Until(() => Field<TextEditor>(sub, "sample").Text.Length > 0);
+        Check(Field<ComboBox>(sub, "body").Items.Cast<string>().Contains("Body") &&
+            Field<ComboBox>(sub, "idToken").Items.Cast<string>().Contains("MessageID"), "token dropdowns list declared main tokens");
         Check(Field<TextEditor>(sub, "result").Text.Contains("submessage[0].pattern[0]", StringComparison.Ordinal), "submessage test reports selected route");
         var fields = Field<Dictionary<string, TextEditor>>(sub, "fields");
         fields["regex"].CaretOffset = fields["regex"].Text.IndexOf('(') + 1;
@@ -212,6 +214,7 @@ internal static class Checks
         Field<TabControl>(sub, "previewTabs").SelectedIndex = 2;
         await Capture(sub, "submessages-fields");
         fields["regex"].Text += "(?:)";
+        Check(Field<TextEditor>(sub, "sample").Text.Length > 0, "editing a submessage keeps the independently extracted body visible");
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Count == 0 && Field<ListBox>(sub, "elements").ItemCount == 0, "editing a submessage invalidates element results and highlights");
         fields["regex"].Document.UndoStack.Undo();
         await sub.TestAsync();
@@ -227,13 +230,14 @@ internal static class Checks
         fields["regex"].Text = "(";
         await Until(() => Field<TextBlock>(sub, "previewStatus").Text!.StartsWith("Unable to test draft"));
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Count == 0, "automatic submessage preview reports invalid regex without stale highlights");
+        Check(Field<TextEditor>(sub, "sample").Text == logs[0].Text[bodyStart..], "invalid submessage regex does not block main token extraction");
         fields["regex"].Text = validPattern;
         await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
         Field<CheckBox>(sub, "automatic").IsChecked = false;
-        Field<TextBox>(sub, "body").Text = "MessageID";
-        await sub.TestAsync();
+        Field<ComboBox>(sub, "body").SelectedItem = "MessageID";
+        await Until(() => Field<TextEditor>(sub, "sample").Text == "LOGIN");
         Check(Field<TextEditor>(sub, "sample").Text == "LOGIN", "changing submessage.token changes the selected pattern input");
-        Field<TextBox>(sub, "body").Text = "Body";
+        Field<ComboBox>(sub, "body").SelectedItem = "Body";
         Field<TextEditor>(sub, "originalLog").Text = "invalid original event";
         await sub.TestAsync();
         Check(Field<TextEditor>(sub, "sample").Text == "" && Field<CaptureHighlighter>(sub, "painter").Spans.Count == 0,

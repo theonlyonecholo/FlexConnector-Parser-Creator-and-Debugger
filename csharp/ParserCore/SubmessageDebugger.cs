@@ -9,11 +9,33 @@ public static class SubmessageDebugger
     public static SubmessageDebugResult Analyze(string source, string input, int message, int pattern,
         CancellationToken cancellation = default)
     {
-        var route = new ParserEvaluator(source).Evaluate(input, true, cancellation);
         var doc = new PropertiesDocument(source);
-        var body = route.Captures.FirstOrDefault(c => c.Stage == "Token" && c.Name == doc.Get("submessage.token"));
+        // Extract the body independently: unfinished submessage drafts must not hide a valid main token.
+        var mainDoc = new PropertiesDocument(source);
+        mainDoc.Set("submessage.count", "0");
+        var main = new ParserEvaluator(mainDoc.Source).Evaluate(input, true, cancellation);
+        ParserResult route;
+        try
+        {
+            route = new ParserEvaluator(source).Evaluate(input, true, cancellation);
+        }
+        catch (FormatException ex)
+        {
+            route = new(ParseState.Error, main.MainMatched, "", "—", ex.Message, main.Captures, []);
+        }
+        string bodyName = doc.Get("submessage.token");
+        var body = main.Captures.FirstOrDefault(c => c.Stage == "Token" && c.Name == bodyName);
         if (body is null)
-            return new(route, null, null, "The main regex did not capture the configured body token. Fix the original log or main regex first.");
+        {
+            string reason = bodyName.Length == 0 ? "Select a body token from the declared tokens."
+                : !EventMapping.Tokens(source).ContainsKey(bodyName) ? $"Body token '{bodyName}' is not declared. Select a declared token."
+                : !main.MainMatched ? "Body unavailable: " + main.Description + " Check Original log and the main regex."
+                : $"Token '{bodyName}' was not captured by the main regex (an optional group may have been skipped).";
+            if (!main.MainMatched && (doc.Get("regex").Contains(@"\t", StringComparison.Ordinal) || doc.Get("regex").Contains('\t'))
+                && !input.Contains('\t') && input.Contains('\u2003'))
+                reason += " The regex expects TAB (U+0009), but this input has EM SPACE (U+2003) and no tabs. Load the original log to preserve its separators.";
+            return new(route, null, null, reason);
+        }
         // Preserve the complete raw token, including whitespace and values longer than display snippets.
         string text = input.Substring(body.Index, body.Length);
         if (message < 0 || pattern < 0)

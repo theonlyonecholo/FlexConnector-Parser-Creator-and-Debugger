@@ -52,9 +52,9 @@ All processing uses the existing local .NET engine. Validate the final configura
 
 The cross-platform Avalonia window uses the same implementation on Windows, Linux and macOS. Windows and Ubuntu/WSLg are runtime-tested; macOS is not tested in this environment.
 
-The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the extracted value of submessage.token and selected regex visible. The read-only token view shows the full raw value; the Original log tab holds the editable full event. Press F5 to re-extract it after changes. If extraction fails, the view clears and reports the missing token. Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
+The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the extracted value of submessage.token and selected regex visible. The read-only token view shows the full raw value; the Original log tab holds the editable full event. Changing the original log or body-token dropdown automatically re-extracts it; F5 also refreshes the preview. If extraction fails, the view clears and reports the missing token. Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
 
-Press F5 or Test log with these changes to test the draft. Automatic preview is optional and refreshes after a typing pause. Edits and node switches cancel stale work and clear previous highlights; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
+Press F5 or Test log with these changes to test the draft. Automatic preview is optional and refreshes after a typing pause. Edits and node switches cancel stale work and clear previous highlights while retaining the extracted body; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
 
 The persistent Actual route label identifies the winning definition/pattern. Independently, the selected pattern is evaluated against the complete captured body token, even if routing selected another pattern or ID. A notice explicitly says when the selected pattern was NOT used by routing. This lets you tune later alternatives without reordering or changing production routing.
 
@@ -84,3 +84,9 @@ Implementation: PropertyLayout.cs classifies known categories and compares hiera
 The main regex first extracts named tokens. submessage.token names the token containing the text parsed by every selected submessage pattern; submessage.messageid.token independently names the routing ID token. The workbench now displays that body as its main input and automatically extracts it when opened. Changing the configured token and retesting updates the body. An empty captured token is distinct from a missing capture. No fallback to the full event is performed.
 
 Verified against the supplied FlexConn_DevGuide.pdf, page 139 (Sub-Messages), and the [official online guide](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.3/pdfdoc/FlexConn_DevGuide/FlexConn_DevGuide.pdf).
+
+## Reliable body previews and token selectors (2.3.2)
+
+Body token and Message ID token use dropdowns populated from declared main tokens. The empty ID entry means no routing token. An existing undeclared value is retained for diagnosis instead of silently replaced. Selecting a body token automatically refreshes its content.
+
+Body extraction uses only the main parser and is independent of submessage validation. Invalid or unfinished submessage patterns no longer hide a valid body. Editing patterns or switching definitions preserves the extracted body while clearing stale highlights. Saving still validates the entire configuration. If extraction cannot succeed, the input label explains missing declarations, unmatched main regex, skipped optional captures or configuration errors. An empty captured value is reported as zero characters.

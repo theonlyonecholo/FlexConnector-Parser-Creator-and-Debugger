@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $repositoryRoot = Split-Path $PSScriptRoot -Parent
 if ([string]::IsNullOrWhiteSpace($Destination)) {
-    $Destination = Join-Path $repositoryRoot 'GitHub-Ready/ArcSight-Parser-Designer-2.3.1'
+    $Destination = Join-Path $repositoryRoot 'GitHub-Ready/ArcSight-Parser-Designer-2.3.2'
 }
 $Destination = [IO.Path]::GetFullPath($Destination)
 if (Test-Path -LiteralPath $Destination) { throw "Destination already exists: $Destination" }

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.3.2 — 2026-10-19
+
+- Keep the extracted body visible while editing or switching submessage patterns.
+- Extract main tokens independently of invalid or unfinished submessage drafts; saving still validates all patterns.
+- Add body and message-ID token dropdowns from declared main tokens, with automatic input refresh.
+- Explain unavailable body values and cover initial loading, invalid patterns, and dropdown changes with regression tests.
+
 ## 2.3.1 — 2026-10-19
 
 - Display the extracted submessage.token value as the submessage workbench input, with token-relative capture and partial-debug highlights.
