@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.6.0 — 2026-10-20
+
+- Detect unsupported parser families and report duplicate property keys with source lines.
+- Add an offline event preview with supported conversions, conditional maps, submessage assignments and a field-write trace.
+- Resolve explicit map dependencies and preview exact-match CSV processors in order, including overwrite rules.
+- Add reusable JSON expected-event tests with PASS, FAIL and INCOMPLETE results.
+- Include worked parser, CSV maps and expected-event fixtures. See docs/EVENT_PIPELINE.md for supported behavior and limitations.
+
 ## 2.5.0 — 2026-10-20
 
 - Show documented event-field types, lengths, ranges, restrictions and source/version in the mapping catalog.

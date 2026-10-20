@@ -970,4 +970,93 @@ Test("Field catalog: persistence, overrides, restoration and advisory types", ()
     }
     finally { if (File.Exists(path)) File.Delete(path); }
 });
+Test("Inspection: parser families and duplicate physical source lines", () =>
+{
+    string source = "# header\r\nregex=(.*)\r\nevent.name=first\\\r\n continued\r\nevent.name=last";
+    var doc = new PropertiesDocument(source);
+    var report = ParserInspection.Inspect(source);
+    Check(report.Supported && report.Diagnostics.Single().Contains("lines 3, 5"));
+    Check(doc.Source == source && doc.Get("event.name") == "last");
+    Check(!ParserInspection.Inspect("key.delimiter=&&").Supported);
+    Check(ParserInspection.Inspect("query=select 1").Family == "Database");
+    Check(ParserInspection.Inspect("regex=(.*)", "test.sdkjsonfilereader.properties").Family.Contains("JSON"));
+});
+Test("Event expressions: nested calls, quoted commas, null and numeric conversion", () =>
+{
+    var values = new Dictionary<string, string?> { ["User"] = "Alice", ["Empty"] = "", ["Bad"] = "-", ["Number"] = "42" };
+    Check(EventExpressions.Evaluate("__concatenate(\"Hello, \",__toLowerCase(User))", values) == "Hello, alice");
+    Check(EventExpressions.Evaluate("__oneOf(Empty,User)", values) == "Alice");
+    Check(EventExpressions.Evaluate("__oneOfInteger(Bad,Number)", values) is null);
+    Check(EventExpressions.Evaluate("__safeToInteger(\"2147483648\")", values) is null);
+    Check(EventExpressions.Evaluate("__safeToLong(Number)", values) == "42");
+    Throws<NotSupportedException>(() => EventExpressions.Evaluate("__unknown(User)", values));
+    Check(EventExpressions.Convert("1970-01-01 00:00:01.000", "TimeStamp", "yyyy-MM-dd HH:mm:ss.SSS") == "1000");
+});
+string PipelineExample() => PropertiesDocument.Load(Path.Combine(AppContext.BaseDirectory, "examples", "event-pipeline.sdkrfilereader.properties")).Source;
+Test("Event pipeline: conditional branches, map order and overwrite trace", () =>
+{
+    var result = EventPipeline.Evaluate(PipelineExample(), "user=alice action=allow port=80", Path.Combine(AppContext.BaseDirectory, "examples"));
+    Check(result.Complete, string.Join("\n", result.Diagnostics));
+    Check(result.Fields["event.name"] == "Allowed alice" && result.Fields["event.message"] == "HTTP traffic");
+    Check(result.Fields["additionaldata.originalUser"] == "alice");
+    Check(result.Trace.Any(t => t.Status.Contains("overwrite disabled")));
+    Check(result.Trace.Any(t => t.Stage == "extraprocessor[1]" && t.After == "HTTP traffic"));
+    var denied = EventPipeline.Evaluate(PipelineExample(), "user=Bob action=deny port=22", Path.Combine(AppContext.BaseDirectory, "examples"));
+    Check(denied.Complete && denied.Fields["event.name"] == "Denied" && denied.Fields["event.sourceUserName"] == "bob");
+});
+Test("Event pipeline: unsupported stages and unavailable dependencies cannot pass", () =>
+{
+    var doc = new PropertiesDocument(PipelineExample());
+    doc.Set("event.name", "__unknown(User)");
+    var unsupported = EventPipeline.Evaluate(doc.Source, "user=alice action=allow port=80");
+    Check(!unsupported.Complete && unsupported.Diagnostics.Any(d => d.Contains("Unsupported operation")));
+    Check(unsupported.Dependencies.All(d => d.Status.Contains("root")));
+    doc.Set("extraprocessor[0].filename", "../outside.csv");
+    Check(MapFileProcessor.Inspect(doc, AppContext.BaseDirectory)[0].Status.Contains("outside"));
+    doc.Set("extraprocessor[0].filename", "missing-map.csv");
+    Check(MapFileProcessor.Inspect(doc, AppContext.BaseDirectory)[0].Status == "File not found.");
+    Check(!EventPipeline.Evaluate("key.delimiter=&&", "x=1").Complete);
+});
+Test("Event pipeline: submessage reordered mappings and extra fields", () =>
+{
+    var doc = new PropertiesDocument(SubSource());
+    doc.Set("submessage[0].pattern[0].regex", @"user=(\w+) result=(\w+)");
+    doc.Set("submessage[0].pattern[0].fields", "event.name,event.message");
+    doc.Set("submessage[0].pattern[0].mappings", "$2|__toUpperCase($1)");
+    doc.Set("submessage[0].pattern[0].extramappings", "additionaldata.actor=$1");
+    var result = EventPipeline.Evaluate(doc.Source, "id=A body=user=alice result=ok");
+    Check(result.Complete && result.Fields["event.name"] == "ok" && result.Fields["event.message"] == "ALICE");
+    Check(result.Fields["additionaldata.actor"] == "alice");
+});
+Test("Event map CSV: quoting, flags, empty setters and duplicate rejection", () =>
+{
+    string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".csv");
+    try
+    {
+        File.WriteAllText(path, "!Flags,CaseSens-,Overwrite-\nevent.name,set.event.message\n\"a,b\",\"line1\nline2\"\n");
+        var fields = new Dictionary<string, string?> { ["event.name"] = "A,B", ["event.message"] = "before" };
+        var trace = new List<EventWrite>();
+        var dep = new MapDependency("extraprocessor[0]", "map", path, path, "Ready");
+        MapFileProcessor.Apply(new PropertiesDocument(""), dep, fields, trace, default);
+        Check(fields["event.message"] == "before" && trace.Single().Status.Contains("retained"));
+        File.WriteAllText(path, "set.event.message\n\"\"\n");
+        MapFileProcessor.Apply(new PropertiesDocument(""), dep, fields, trace, default);
+        Check(fields["event.message"] == "");
+        File.WriteAllText(path, "event.name,set.event.message\nA,B\nA,C\n");
+        Throws<FormatException>(() => MapFileProcessor.Apply(new PropertiesDocument(""), dep, fields, trace, default));
+    }
+    finally { if (File.Exists(path)) File.Delete(path); }
+});
+Test("Expected event fixtures: pass, differences, absence, null and incomplete states", () =>
+{
+    string root = Path.Combine(AppContext.BaseDirectory, "examples");
+    string json = File.ReadAllText(Path.Combine(root, "event-pipeline.expected.json"));
+    Check(EventExpectations.Run(PipelineExample(), json, root).All(r => r.Status == "PASS"));
+    Check(EventExpectations.Run(PipelineExample(), json.Replace("HTTP traffic", "WRONG"), root)[0].Status == "FAIL");
+    Check(EventExpectations.Run(PipelineExample(), json)[0].Status == "INCOMPLETE");
+    Throws<FormatException>(() => EventExpectations.Load("{\"Version\":1,\"Cases\":[]}"));
+    using var cancel = new CancellationTokenSource();
+    cancel.Cancel();
+    Throws<OperationCanceledException>(() => EventExpectations.Run(PipelineExample(), json, root, cancel.Token));
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

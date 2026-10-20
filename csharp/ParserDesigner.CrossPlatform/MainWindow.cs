@@ -46,7 +46,7 @@ internal sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.5.0", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.6.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -69,6 +69,10 @@ internal sealed class MainWindow : Window
             Command("Event mapping…", EditMappingAsync, "Assign tokens, constants or expressions to event fields."),
             Command("Severity / processors…", EditAdvancedAsync, "Normalize severity and configure downstream parsers."),
             Command("Test log file…", OpenBatchAsync, "Test a parser against all lines, inspect routes and tune it."), Ui.Help(this, "start"));
+        toolbar.Children.Insert(toolbar.Children.Count - 1,
+            Command("Event preview / tests…", () => new EventPreviewDialog(Source.Text, Message.Text,
+                path is null ? null : Path.GetDirectoryName(path), path).ShowDialog(this),
+                "Inspect configuration compatibility, final event fields, map dependencies and expected-field tests."));
         var options = Ui.Bar(automatic, ignoreCase, multiline, singleline, entire, trim, Ui.Columns("Auto,Auto", Ui.Label("Timeout (ms)"), timeout));
         foreach (var check in new[] { automatic, ignoreCase, multiline, singleline, entire, trim })
         {
@@ -153,7 +157,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.5.0";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.6.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
@@ -232,6 +236,7 @@ internal sealed class MainWindow : Window
                 diagnostics += analyzed.Error + $"\nRegex error position: {analyzed.ErrorOffset}\n";
             if (doc is not null)
             {
+                diagnostics += string.Join("\n", ParserInspection.Inspect(source, path).Diagnostics) + "\n";
                 if (doc.Get("regex") != pattern)
                     diagnostics += "The working regex differs from the configuration. Synchronize before file testing.\n";
                 int count = analyzed.Rows.Where(r => r.Match == 1 && r.Group > 0).Select(r => r.Group).Distinct().Count();
@@ -356,8 +361,11 @@ internal sealed class MainWindow : Window
         if (new FileInfo(file).Length > 8 * 1024 * 1024)
             throw new IOException("Parser files are limited to 8 MB.");
         var doc = PropertiesDocument.Load(file);
-        if (!doc.Values.ContainsKey("regex"))
-            throw new FormatException("The file does not contain a regex property.");
+        if (!ParserInspection.Inspect(doc.Source, file).Supported)
+        {
+            await new EventPreviewDialog(doc.Source, Message.Text, Path.GetDirectoryName(file), file).ShowDialog(this);
+            return;
+        }
         loading = true;
         try
         {
@@ -487,7 +495,7 @@ internal sealed class MainWindow : Window
     {
         if (!await SynchronizeAsync())
             return;
-        var batch = new BatchWindow(Source.Text);
+        var batch = new BatchWindow(Source.Text, path is null ? null : Path.GetDirectoryName(path));
         await batch.ShowDialog(this);
         if (batch.ConfigurationSource != Source.Text)
         {

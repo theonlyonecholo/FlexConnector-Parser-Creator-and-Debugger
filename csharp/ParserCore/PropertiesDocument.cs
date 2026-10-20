@@ -3,6 +3,8 @@ using System.Text;
 
 namespace ParserCore;
 
+public sealed record PropertyDeclaration(string Key, string Value, int Line);
+
 /// <summary>Java properties syntax; keeps untouched source blocks and comments.</summary>
 public sealed class PropertiesDocument
 {
@@ -12,6 +14,21 @@ public sealed class PropertiesDocument
     public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
     public string Source => string.Concat(entries.Select(e => e.Raw));
     public string Get(string key) => Values.GetValueOrDefault(key, "");
+    /// <summary>All declarations, including duplicates, with physical one-based source lines.</summary>
+    public IReadOnlyList<PropertyDeclaration> Declarations()
+    {
+        var result = new List<PropertyDeclaration>();
+        int line = 1;
+        foreach (var entry in entries)
+        {
+            if (entry.Key is not null)
+                result.Add(new(entry.Key, entry.Value!, line));
+            for (int i = 0; i < entry.Raw.Length; i++)
+                if (entry.Raw[i] == '\n' || entry.Raw[i] == '\r' && (i + 1 == entry.Raw.Length || entry.Raw[i + 1] != '\n'))
+                    line++;
+        }
+        return result;
+    }
 
     public PropertiesDocument(string source)
     {

@@ -9,7 +9,7 @@ Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.5.0**.
+help, source comments and documentation are English. Current release: **2.6.0**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.
@@ -20,6 +20,8 @@ See [release notes](CHANGELOG.md) and the [cross-platform guide](docs/CROSS_PLAT
 
 ## Features
 
+- [Offline event preview and expected-field tests](docs/EVENT_PIPELINE.md), with dependency checks and an ordered field-write trace.
+- Parser-family inspection and duplicate-key diagnostics with source locations.
 - Regex preview with capture colors, group-to-message navigation and diagnostics.
 - Token generation with captured-text snippets, type selection and a format builder.
 - Event mapping editor for tokens, constants and ArcSight expressions.

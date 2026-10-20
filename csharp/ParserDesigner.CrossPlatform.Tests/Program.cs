@@ -449,6 +449,26 @@ internal static class Checks
         Check(main.Pattern.Text == "(" + beforeGroup[..6] + ")" + beforeGroup[6..], "main regex group button wraps only the selected text");
         main.Pattern.Document.UndoStack.Undo();
         Check(main.Pattern.Text == beforeGroup, "group insertion is one undo step");
+        string pipelineRoot = Path.Combine(AppContext.BaseDirectory, "examples");
+        string pipelineSource = PropertiesDocument.Load(Path.Combine(pipelineRoot, "event-pipeline.sdkrfilereader.properties")).Source;
+        var pipeline = new EventPreviewDialog(pipelineSource, "user=alice action=allow port=80", pipelineRoot);
+        var pipelineTask = pipeline.ShowDialog(main);
+        await Until(() => Field<TextBlock>(pipeline, "status").Text!.Contains("SUPPORTED STAGES EVALUATED"));
+        Check(Field<TextEditor>(pipeline, "output").Text.Contains("HTTP traffic") &&
+            Field<TextEditor>(pipeline, "output").Text.Contains("overwrite disabled"), "event preview shows resolved fields and overwrite history");
+        await Capture(pipeline, "event-preview");
+        string expectedJson = File.ReadAllText(Path.Combine(pipelineRoot, "event-pipeline.expected.json"));
+        Field<TextEditor>(pipeline, "fixture").Text = expectedJson;
+        await pipeline.TestAsync();
+        Check(Field<TextBlock>(pipeline, "status").Text!.StartsWith("2 PASS"), "expected-field tests run in the UI");
+        Field<TextEditor>(pipeline, "fixture").Text = expectedJson.Replace("HTTP traffic", "wrong");
+        await pipeline.TestAsync();
+        Check(Field<TextBlock>(pipeline, "status").Text!.Contains("1 FAIL"), "UI reports mismatched expected fields");
+        Field<TextBox>(pipeline, "root").Text = "";
+        await pipeline.TestAsync();
+        Check(Field<TextBlock>(pipeline, "status").Text!.Contains("2 INCOMPLETE"), "missing dependencies cannot produce a passing fixture");
+        pipeline.Close();
+        await pipelineTask;
         // The session is untouched by modal draft tests, so closing cannot prompt for unsaved work.
         Check(!main.IsDirty, "modal previews do not silently modify the main parser");
     }

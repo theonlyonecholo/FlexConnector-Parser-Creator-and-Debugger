@@ -37,6 +37,8 @@ alternatives, and supports a default definition.
 | P2 | Offer an optional local Java regex comparison | Report .NET/Java behavior differences without claiming full connector emulation. |
 
 The current release implements the editable local field catalog and fixes
-caret-driven regex selection. The pipeline and compatibility proposals above
-remain future work. No third-party parser code or connector binary is bundled
+caret-driven regex selection. Version 2.6.0 adds a bounded implementation of
+compatibility inspection, event preview, map dependencies and expected-field tests;
+see [Event pipeline](EVENT_PIPELINE.md). Schema profiles, additional-data editing
+and Java comparison remain future work. No third-party parser code or connector binary is bundled
 as a result of this review.

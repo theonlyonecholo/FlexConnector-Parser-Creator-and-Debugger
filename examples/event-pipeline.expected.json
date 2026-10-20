@@ -1,0 +1,29 @@
+{
+  "Version": 1,
+  "Cases": [
+    {
+      "Name": "HTTP allowed",
+      "Log": "user=alice action=allow port=80",
+      "Fields": {
+        "event.name": "Allowed alice",
+        "event.sourceUserName": "alice",
+        "event.destinationPort": "80",
+        "event.applicationProtocol": "http",
+        "event.message": "HTTP traffic",
+        "additionaldata.originalUser": "alice"
+      },
+      "AbsentFields": ["event.sourceAddress"]
+    },
+    {
+      "Name": "SSH denied by default conditional branch",
+      "Log": "user=Bob action=deny port=22",
+      "Fields": {
+        "event.name": "Denied",
+        "event.sourceUserName": "bob",
+        "event.applicationProtocol": "ssh",
+        "event.message": "SSH traffic",
+        "additionaldata.originalUser": "Bob"
+      }
+    }
+  ]
+}

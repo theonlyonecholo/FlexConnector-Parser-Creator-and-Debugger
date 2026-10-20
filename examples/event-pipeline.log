@@ -1,0 +1,2 @@
+user=alice action=allow port=80
+user=Bob action=deny port=22

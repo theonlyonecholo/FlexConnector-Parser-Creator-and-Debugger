@@ -33,7 +33,7 @@ internal sealed class BatchWindow : Window
         get; private set;
     }
 
-    public BatchWindow(string source)
+    public BatchWindow(string source, string? dependencyRoot = null)
     {
         ConfigurationSource = source;
         evaluator = new(source);
@@ -47,6 +47,8 @@ internal sealed class BatchWindow : Window
             Ui.Button("◀ Log", () => Move(-1)), Ui.Button("Log ▶", () => Move(1)), filter,
             Ui.AsyncButton("Edit submessage…", () => Ui.Guard(this, EditSubmessageAsync)),
             Ui.AsyncButton("Edit parser…", () => Ui.Guard(this, EditParserAsync)), Ui.Help(this, "batch"));
+        tools.Children.Insert(tools.Children.Count - 1, Ui.AsyncButton("Event preview / tests…", () => Ui.Guard(this,
+            () => new EventPreviewDialog(ConfigurationSource, (list.SelectedItem as LogRow)?.Text ?? "", dependencyRoot).ShowDialog(this))));
         Content = new Border
         {
             Padding = new Thickness(18),
@@ -203,7 +205,7 @@ internal sealed class BatchWindow : Window
             captures.ItemsSource = detail.Captures.Select(c => new CaptureItem(c)).ToArray();
             description.Text = $"Line {row.Line} · {State(detail)}\n{highlighting.Explanation}\n{detail.Description}\nMessage ID: {detail.MessageId}\nRoute: {detail.Route}\n" +
                 string.Join("\n", detail.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}")) +
-                "\nFields are capture labels. ArcSight transformations and extra processors are not executed.";
+                "\nThis list tests regex routing. Use Event preview / tests for supported transformations, processors and expected-field assertions.";
             Paint();
         }
         catch (OperationCanceledException) { }

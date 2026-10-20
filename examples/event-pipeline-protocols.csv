@@ -1,0 +1,3 @@
+event.applicationProtocol,set.event.message
+http,HTTP traffic
+ssh,SSH traffic

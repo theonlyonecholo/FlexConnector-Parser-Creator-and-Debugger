@@ -1,0 +1,3 @@
+event.destinationPort,set.event.applicationProtocol,set.event.name
+80,http,Port map name
+22,ssh,Port map name
