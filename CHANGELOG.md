@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.1 — 2026-10-20
+
+- Add an original application icon to native windows and the Windows executable.
+- Add consistent vector action icons while retaining visible labels and accessible button names.
+- Bundle editable SVG/PNG/ICO assets and an offline regeneration script.
+- Document proposed visual improvements in docs/VISUAL_DESIGN.md.
+
 ## 2.7.0 — 2026-10-20
 
 - Show the raw routing ID token and its extraction status above the submessage body.

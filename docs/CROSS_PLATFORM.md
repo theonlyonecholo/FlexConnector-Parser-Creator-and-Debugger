@@ -1,4 +1,4 @@
-# Cross-platform desktop edition — 2.7.0
+# Cross-platform desktop edition — 2.7.1
 
 This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.0.
 Both regex editors include a persistent local [regex preset library](REGEX_PRESETS.md)

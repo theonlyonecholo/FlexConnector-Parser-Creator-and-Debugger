@@ -2,10 +2,12 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <AssemblyName>ArcSight.ParserDesigner.CrossPlatform</AssemblyName>
-    <Version>2.7.0</Version>
+    <Version>2.7.1</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ApplicationIcon>Assets/app-icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <AvaloniaResource Include="Assets/app-icon.png" />
     <ProjectReference Include="../ParserCore/ParserCore.csproj" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />

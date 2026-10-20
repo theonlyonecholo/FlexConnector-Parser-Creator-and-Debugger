@@ -9,7 +9,7 @@ Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.7.0**.
+help, source comments and documentation are English. Current release: **2.7.1**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.

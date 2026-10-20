@@ -52,6 +52,7 @@ internal static class Ui
     public static Button Button(string text, Action action, string hint = "")
     {
         var button = new Button { Content = text, MinHeight = 34, VerticalAlignment = VerticalAlignment.Center };
+        Icons.Decorate(button, text);
         button.Click += (_, _) => action();
         Tip(button, hint);
         return button;
@@ -106,6 +107,8 @@ internal static class Ui
     public static void Setup(Window window, string title, double width = 1000, double height = 740)
     {
         window.Title = title;
+        using (var icon = Avalonia.Platform.AssetLoader.Open(new Uri("avares://ArcSight.ParserDesigner.CrossPlatform/Assets/app-icon.png")))
+            window.Icon = new WindowIcon(icon);
         window.Width = width;
         window.Height = height;
         window.MinWidth = Math.Min(width, 760);
