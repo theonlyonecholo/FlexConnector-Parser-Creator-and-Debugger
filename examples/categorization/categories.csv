@@ -1,0 +1,3 @@
+event.deviceEventClassId,set.event.categoryObject,set.event.categoryBehavior,set.event.categoryTechnique,set.event.categoryDeviceGroup,set.event.categorySignificance,set.event.categoryOutcome
+CREATED,/Host/Resource,/Create,,/Application,/Normal,/Success
+CREATE_FAILED,/Host/Resource,/Create,,/Application,/Informational/Error,/Failure

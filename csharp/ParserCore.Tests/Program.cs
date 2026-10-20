@@ -1076,4 +1076,74 @@ Test("Submessage ID preview: independent extraction, empty and missing captures"
     doc.Set("submessage.messageid.token", "");
     Check(SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=x", -1, -1).IdStatus.Contains("No ID token"));
 });
+Test("Category maps: quoted CSV round trip and invalid inputs", () =>
+{
+    var map = new CategoryMap();
+    map.Rows.Add(["ID,\"quoted\"\nline", "/Host/Resource", "/Create", "", "/Application", "/Normal", "/Success"]);
+    Check(CategoryMap.Parse(map.ToCsv()).Rows.Single().SequenceEqual(map.Rows.Single()));
+    map.Rows.Add(["id,\"quoted\"\nline", "", "", "", "", "", ""]);
+    Throws<FormatException>(map.Validate);
+    Throws<FormatException>(() => CategoryMap.Parse("event.name,set.event.categoryOutcome\nA,/Success"));
+    map.Rows.RemoveAt(1);
+    map.Rows[0][6] = "Success";
+    Throws<FormatException>(map.Validate);
+});
+Test("Category maps: attach preserves processors and prevents escaped paths", () =>
+{
+    string source = "# Keep this\nextraprocessor.count=1\nextraprocessor[0].type=regex\nextraprocessor[0].filename=original.properties\n";
+    string updated = CategoryMap.Attach(source, "maps/categories.csv");
+    var doc = new PropertiesDocument(CategoryMap.Attach(updated, "maps/categories.csv"));
+    Check(doc.Get("extraprocessor.count") == "2" && doc.Get("extraprocessor[0].type") == "regex");
+    Check(doc.Get("extraprocessor[1].filename") == "maps/categories.csv" && doc.Source.Contains("# Keep this"));
+    Throws<FormatException>(() => CategoryMap.Attach(source, "../outside.csv"));
+    Throws<FormatException>(() => CategoryMap.Attach(source, @"..\outside.csv"));
+    Check(CategoryMap.NativeName("It's a Big Product") == "it_s_a_big_product");
+});
+Test("Category dictionary: persistence, removal and corruption detection", () =>
+{
+    string file = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+    try
+    {
+        var catalog = new CategoryCatalog(file);
+        var entries = catalog.Load();
+        entries.Add(new("categoryTechnique", "/Custom", "Local example"));
+        catalog.Save(entries);
+        Check(new CategoryCatalog(file).Load().Last().Value == "/Custom");
+        catalog.Save([]);
+        Check(catalog.Load().Count == 0);
+        Throws<FormatException>(() => catalog.Save([new("invalid", "/Value", "")]));
+        File.WriteAllText(file, "{corrupt");
+        Throws<System.Text.Json.JsonException>(() => catalog.Load());
+        Check(File.ReadAllText(file) == "{corrupt");
+    }
+    finally { if (File.Exists(file)) File.Delete(file); }
+});
+Test("Category processing: extra maps, native maps, no match and native skip", () =>
+{
+    string root = Path.Combine(Path.GetTempPath(), "category-test-" + Guid.NewGuid());
+    Directory.CreateDirectory(root);
+    string parser = "regex=(.*)\ntoken.count=1\ntoken[0].name=ID\ntoken[0].type=String\nevent.deviceEventClassId=ID\nevent.deviceVendor=__stringConstant(Test Vendor)\nevent.deviceProduct=__stringConstant(Product)\n";
+    var map = new CategoryMap();
+    map.Rows.Add(["LOGIN", "/Host/Resource", "/Create", "", "/Application", "/Normal", "/Success"]);
+    try
+    {
+        File.WriteAllText(Path.Combine(root, "categories.csv"), map.ToCsv());
+        string mapped = CategoryMap.Attach(parser, "categories.csv");
+        var result = EventPipeline.Evaluate(mapped, " login ", root);
+        Check(result.Complete && result.Fields["event.categoryOutcome"] == "/Success", string.Join("; ", result.Diagnostics));
+        var unmatched = EventPipeline.Evaluate(mapped, "unknown", root);
+        Check(unmatched.Complete && !unmatched.Fields.ContainsKey("event.categoryOutcome") && unmatched.Trace.Any(t => t.Status == "No map row matched"));
+        string native = Path.Combine(root, "categorizer", "test_vendor");
+        Directory.CreateDirectory(native);
+        File.WriteAllText(Path.Combine(native, "product.csv"), map.ToCsv());
+        result = EventPipeline.Evaluate(parser, "login", root);
+        Check(result.Complete && result.Fields["event.categoryOutcome"] == "/Success" && result.Trace.Any(t => t.Stage == "Categorizer"));
+        result = EventPipeline.Evaluate(parser + "event.categoryOutcome=__stringConstant(/Failure)\n", "LOGIN", root);
+        Check(result.Fields["event.categoryOutcome"] == "/Failure" && result.Trace.Any(t => t.Status.StartsWith("Skipped:")));
+        File.Delete(Path.Combine(native, "product.csv"));
+        Check(!EventPipeline.Evaluate(parser, "LOGIN", root).Complete);
+        Check(!EventPipeline.Evaluate(mapped, "LOGIN", null).Complete);
+    }
+    finally { Directory.Delete(root, true); }
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

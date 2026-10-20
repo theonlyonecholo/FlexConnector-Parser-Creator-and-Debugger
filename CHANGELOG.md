@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.8.0 — 2026-10-20
+
+- Add an exact-ID category CSV editor with searchable rows and a persistent, editable category dictionary.
+- Export parser map processors or vendor/product native categorizer maps, preserving existing processor order.
+- Preview native categorization from a local categorizer directory, including already-categorized event skipping.
+- Search event-mapping tokens by name or captured text and show snippets in the dropdown.
+- Evaluate event processing in batch log tests, with category values, map-row traces and incomplete/uncategorized filters.
+- Add documented deployment distinctions, examples, core regressions and Windows/Linux UI coverage.
+
 ## 2.7.3 — 2026-10-20
 
 - Complete action-button icons for navigation, creation, editing, format insertion and confirmation dialogs.

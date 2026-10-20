@@ -1,0 +1,4 @@
+id=CREATED message=Created a resource
+id=create_failed message=Resource creation failed
+id=UNKNOWN message=No category row for this ID
+This line does not match the parser

@@ -2,6 +2,21 @@
 
 ## Project boundaries
 
+Category authoring is shared-core logic in `ParserCore/CategoryMap.cs`:
+`CategoryMap` validates and serializes the structured seven-column CSV format,
+attaches map processors without rebuilding unrelated properties, and resolves
+native vendor/product map names. `CategoryCatalog` stores the user vocabulary
+with validation and atomic replacement. `EventPipeline` runs optional native
+categorization after supported processor stages when a local `categorizer/`
+directory exists. Existing `MapFileProcessor` performs the CSV lookup.
+
+The Avalonia `CategoryMapDialog` owns row editing and CSV save dialogs;
+`CategoryCatalogDialog` owns vocabulary CRUD. Neither writes the main parser
+file: updated configuration is returned to its owning window for review/save.
+`BatchWindow` keeps compact event-processing summaries per log and reevaluates
+the selected log for the detailed mapping trace. It retains cancellation and
+version guards when a parser is edited or a run is replaced.
+
 Version 2.0 adds `ParserDesigner.CrossPlatform` (Avalonia / .NET 10) as a second
 desktop frontend. It shares `ParserCore` and the offline help catalog with the
 Windows edition. See [the cross-platform code map](CROSS_PLATFORM.md#code-map)

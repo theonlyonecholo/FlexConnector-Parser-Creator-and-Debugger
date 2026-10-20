@@ -1,15 +1,15 @@
 # ArcSight FlexConnector Parser Designer
 
-Version 2.3 adds partial regex previews in the main window and submessage workbench, with highlighted text and element navigation when the complete regex fails.
-It also includes offline parser suggestions from logs and event mapping snippets.
-See [Parser assistance](docs/PARSER_ASSISTANCE.md) for usage and supported syntax.
+Version 2.8 adds editable category CSV maps, a persistent category dictionary,
+searchable token snippets and categorization results in batch log testing.
+See [Category maps](docs/CATEGORY_MAPS.md) for the workflow and deployment details.
 
 A cross-platform desktop workbench for authoring ArcSight FlexConnector regex parsers.
 Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.7.3**.
+help, source comments and documentation are English. Current release: **2.8.0**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.
@@ -20,6 +20,8 @@ See [release notes](CHANGELOG.md) and the [cross-platform guide](docs/CROSS_PLAT
 
 ## Features
 
+- [Editable category CSV maps and dictionary](docs/CATEGORY_MAPS.md), with categorization results for every tested log.
+- Searchable mapping tokens with captured-text snippets in the dropdown.
 - [Offline event preview and expected-field tests](docs/EVENT_PIPELINE.md), with dependency checks and an ordered field-write trace.
 - Parser-family inspection and duplicate-key diagnostics with source locations.
 - Regex preview with capture colors, group-to-message navigation and diagnostics.

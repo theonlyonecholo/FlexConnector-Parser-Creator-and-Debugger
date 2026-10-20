@@ -74,7 +74,7 @@ internal static class Icons
             return "tokens";
         if (label.StartsWith("Submessages", StringComparison.Ordinal))
             return "branch";
-        if (label.StartsWith("Event mapping", StringComparison.Ordinal) || label.StartsWith("Choose ArcSight", StringComparison.Ordinal))
+        if (label.StartsWith("Event mapping", StringComparison.Ordinal) || label.StartsWith("Choose ArcSight", StringComparison.Ordinal) || label.StartsWith("Category maps", StringComparison.Ordinal))
             return "mapping";
         if (label.StartsWith("Event preview", StringComparison.Ordinal))
             return "search";

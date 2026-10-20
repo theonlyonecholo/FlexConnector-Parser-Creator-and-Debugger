@@ -184,6 +184,7 @@ requestUrl contains the full URL. Avoid assigning it together with derived URI c
 
 Event mapping editor
 Choose a target field to see its expected type. Token mode lists declared tokens, Constant creates __stringConstant, and Expression stores an entered operation. Add / update inserts the draft into the table or updates the same field. Add or clear any unfinished draft above the table before applying.
+In the cross-platform edition, Search tokens filters names and captured sample values. The token dropdown includes a short raw-value snippet. Category maps creates exact event-class-ID CSV mappings and provides a persistent, editable category dictionary. Save the CSV and then save the returned parser configuration.
 Double-click table cells to edit existing mappings. Remove mapping deletes the selected row. Apply to configuration writes changes into the main text; then Save. Cancel discards the draft. Direct event.* mappings are separate from submessage mappings and other properties, which the editor preserves.
 The editor rejects duplicate fields and empty expressions. Diagnostics warn about unknown direct tokens, type mismatches against the field catalog, missing event.name, or requestUrl/URI conflicts. Warnings do not prevent saving because another parser component may supply values. Custom event fields can be entered manually.
 The application does not execute general ArcSight operations or event mapping. Type checks cover direct tokens, not expression return types. A green regex match does not validate the resulting event.
@@ -255,7 +256,8 @@ Green: the regex stage passed. When a submessage fails, the main extraction can 
 Red: input of a failed stage, or the ID token with no route. This is not a guaranteed exact error location.
 Orange: an estimated matching prefix or an uncertain error/timeout. A partial prefix does not count as a successful parse.
 For multiple failed submessage patterns, the partial preview uses the first attempted pattern, named in the details. Edit submessage to inspect other variants.
-Missing text at the end and empty tokens have no character to color; read the diagnostic. Token conversions, transformations and extra processors are not executed.
+Missing text at the end and empty tokens have no character to color; read the diagnostic. Colors describe regex matching, not event processing.
+In the cross-platform edition, the batch workbench also evaluates supported token conversions, event mappings and CSV processors. It shows category values, unmatched map rows and incomplete processing separately from regex results. Use the incomplete-processing and no-category filters to find gaps. Category maps edits CSV mappings and retests the logs. The local categorizer/ directory beside the parser enables native categorizer preview; see docs/CATEGORY_MAPS.md for deployment paths and limits.
 """),
         new("severity", "Severity: normalize device severity", """
 Devices may report different severity scales or only a status code. event.deviceSeverity carries the original value; severity.map.* maps it to low, medium, high or veryhigh.

@@ -139,6 +139,11 @@ reported, but the inspector is not an exhaustive validator of all possible keys.
 Regex behavior remains .NET behavior, not Java engine equivalence.
 All evaluation and dependency reads are local.
 
+The [category-map editor](CATEGORY_MAPS.md) creates exact event-class-ID CSVs,
+and a local `categorizer/` directory opts into native categorizer preview after
+supported processing. Batch testing now also runs event processing and shows
+category values and incomplete processing separately from regex matches.
+
 The implementation was checked against the public
 [FlexConnector Developer's Guide, CE 24.3, July 2024](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-25.1/pdfdoc/flexconn_devguide/flexconn_devguide.pdf)
 (in particular map files and extra processors) and the official

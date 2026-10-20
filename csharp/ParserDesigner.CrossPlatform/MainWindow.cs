@@ -46,7 +46,7 @@ internal sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.7.3", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.8.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -67,6 +67,7 @@ internal sealed class MainWindow : Window
             Command("Tokens…", EditTokensAsync, "Create named tokens and formats from capturing groups."),
             Command("Submessages…", EditSubmessagesAsync, "Edit message IDs, ordered body patterns and mappings."),
             Command("Event mapping…", EditMappingAsync, "Assign tokens, constants or expressions to event fields."),
+            Command("Category maps…", EditCategoryMapsAsync, "Create CSV category maps and edit the persistent category dictionary."),
             Command("Severity / processors…", EditAdvancedAsync, "Normalize severity and configure downstream parsers."),
             Command("Test log file…", OpenBatchAsync, "Test a parser against all lines, inspect routes and tune it."), Ui.Help(this, "start"));
         toolbar.Children.Insert(toolbar.Children.Count - 1,
@@ -157,7 +158,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.7.3";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.8.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
@@ -438,6 +439,16 @@ internal sealed class MainWindow : Window
     private async Task EditMappingAsync()
     {
         string? updated = await new MappingDialog(Source.Text, Message.Text, Pattern.Text, Options, entire.IsChecked == true, trim.IsChecked == true, (int)(timeout.Value ?? 250)).ShowDialog<string?>(this);
+        if (updated is not null)
+            Ui.Replace(Source, updated);
+    }
+    private async Task EditCategoryMapsAsync()
+    {
+        if (!await SynchronizeAsync())
+            return;
+        if (path is null && !await SaveAsync(false))
+            return;
+        string? updated = await new CategoryMapDialog(Source.Text, Path.GetDirectoryName(path!)!).ShowDialog<string?>(this);
         if (updated is not null)
             Ui.Replace(Source, updated);
     }

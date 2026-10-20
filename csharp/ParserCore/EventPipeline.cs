@@ -227,6 +227,25 @@ public static class EventPipeline
             foreach (string key in new[] { "multiline.starts.regex", "multiline.ends.regex", "line.filter.regex", "ignore.regex" })
                 if (doc.Values.ContainsKey(key))
                     Issue("Not evaluated: " + key);
+            string? categorizerRoot = dependencyRoot is null ? null : Path.Combine(dependencyRoot, "categorizer");
+            if (categorizerRoot is not null && Directory.Exists(categorizerRoot))
+            {
+                if (!complete)
+                    diagnostics.Add("Native categorizer skipped because earlier processing is incomplete.");
+                else
+                {
+                    var categoryTrace = new List<EventWrite>();
+                    try
+                    {
+                        CategoryMap.ApplyNative(categorizerRoot, fields, categoryTrace, cancellation);
+                    }
+                    catch (Exception ex) when (ex is IOException or FormatException or NotSupportedException or UnauthorizedAccessException or ArgumentException)
+                    {
+                        Issue(ex.Message);
+                    }
+                    trace.AddRange(categoryTrace.Select(t => t with { Stage = "Categorizer" }));
+                }
+            }
         }
         catch (Exception ex) when (ex is FormatException or NotSupportedException or ArgumentException)
         {

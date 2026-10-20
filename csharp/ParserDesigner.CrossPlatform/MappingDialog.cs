@@ -6,6 +6,10 @@ namespace ParserDesigner.CrossPlatform;
 
 internal sealed class MappingDialog : Window
 {
+    private sealed record TokenChoice(string Name, string Snippet)
+    {
+        public override string ToString() => Name + " · " + Snippet;
+    }
     private sealed record MappingRow(TextBox Field, TextBox Expression, TextBlock Snippet, Control Container);
     private readonly List<MappingRow> rows = [];
     private readonly ComboBox fields = new() { PlaceholderText = "Field catalog…", MinWidth = 240, MaxWidth = 650 };
@@ -65,8 +69,21 @@ internal sealed class MappingDialog : Window
         var value = Ui.Input("", "Token name, literal constant or decoded ArcSight expression.");
         var draftSnippet = Ui.Label("");
         value.TextChanged += (_, _) => UpdateSnippet(draftSnippet, value.Text ?? "");
-        var tokens = new ComboBox { ItemsSource = EventMapping.Tokens(source).Keys.ToArray(), PlaceholderText = "Declared tokens…", MinWidth = 180 };
-        tokens.SelectionChanged += (_, _) => { if (tokens.SelectedItem is string token) { value.Text = token; mode.SelectedIndex = 0; } };
+        var tokenSearch = Ui.Input("", "Search token names or captured sample text.");
+        tokenSearch.PlaceholderText = "Search tokens…";
+        tokenSearch.Width = 180;
+        var tokens = new ComboBox { PlaceholderText = "Declared tokens…", MinWidth = 180, MaxWidth = 350 };
+        void FilterTokens()
+        {
+            string query = tokenSearch.Text ?? "";
+            tokens.ItemsSource = EventMapping.Tokens(source).Keys
+                .Select(n => new TokenChoice(n, Preview(n).Replace("\r", " ").Replace("\n", " ")))
+                .Where(t => t.Name.Contains(query, StringComparison.OrdinalIgnoreCase) || t.Snippet.Contains(query, StringComparison.OrdinalIgnoreCase))
+                .Select(t => t with { Snippet = t.Snippet.Length > 65 ? t.Snippet[..65] + "…" : t.Snippet }).ToArray();
+        }
+        tokenSearch.TextChanged += (_, _) => FilterTokens();
+        tokens.SelectionChanged += (_, _) => { if (tokens.SelectedItem is TokenChoice token) { value.Text = token.Name; mode.SelectedIndex = 0; } };
+        FilterTokens();
         void Diagnose() => diagnostics.Text = string.Join("\n", EventMapping.Warnings(source, rows.Select(r => new EventAssignment(r.Field.Text ?? "", r.Expression.Text ?? "")).ToArray(),
             catalog.ToDictionary(p => p.Key, p => p.Value.Type, StringComparer.Ordinal)));
         var manage = Ui.AsyncButton("Manage fields…", () => Ui.Guard(this, async () =>
@@ -113,7 +130,7 @@ internal sealed class MappingDialog : Window
             Padding = new Thickness(18),
             Child = Ui.Rows("Auto,Auto,Auto,*,Auto,Auto",
             Ui.Label("Assign tokens, constants or expressions to event fields. Add the draft to the table, then apply.\nSnippets use the first match of the working regex against Message (last repeated capture). Hover for more text.\nValues are raw, before type/format conversion. String constants are shown; other ArcSight operations are not executed."),
-            Ui.Stack(Ui.Bar(fields, manage, tokens), Ui.Columns("*,140,2*", field, mode, value), draftSnippet),
+            Ui.Stack(Ui.Bar(fields, manage, tokenSearch, tokens), Ui.Columns("*,140,2*", field, mode, value), draftSnippet),
             Ui.Stack(Ui.Bar(add), new ScrollViewer { MaxHeight = 130, Content = fieldDetails }),
             new ScrollViewer { Content = table }, new ScrollViewer { MaxHeight = 120, Content = diagnostics },
             Ui.Bar(Ui.AsyncButton("Apply to configuration", () => Ui.Guard(this, () =>
@@ -136,6 +153,7 @@ internal sealed class MappingDialog : Window
             foreach (var capture in result.Rows.Where(r => r.Match == 1 && r.Group > 0 && r.Success))
                 values[doc.Get($"token[{capture.Group - 1}].name")] = capture.Value;
             previewStatus = result.Error ?? (result.Matches.Count == 0 ? "No sample match" : "No captured token with this name");
+            FilterTokens();
             foreach (var row in rows)
                 UpdateSnippet(row.Snippet, row.Expression.Text ?? "");
             UpdateSnippet(draftSnippet, value.Text ?? "");
