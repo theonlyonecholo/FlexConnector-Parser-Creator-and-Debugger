@@ -103,6 +103,24 @@ internal static class Checks
         Check(Field<TextBlock>(main, "status").Text!.StartsWith("PARTIAL") && painter.Spans.Any(s => s.Selected && s.Length == 1), "partial element stepping remains explicitly labeled");
         main.Message.Text = originalMessage;
         Field<TabControl>(main, "tabs").SelectedIndex = 0;
+        foreach (string expression in new[] { "(a[bc])", "(a[bc])Z" })
+        {
+            main.Pattern.Text = expression;
+            main.Message.Text = "ab";
+            await main.AnalyzeAsync();
+            Field<TabControl>(main, "tabs").SelectedIndex = 1;
+            foreach (int position in new[] { 1, 3, 4 })
+            {
+                main.Pattern.Select(position, 0);
+                Check(main.Pattern.SelectionLength == 0 && main.Pattern.CaretOffset == position,
+                    "main caret inside groups/classes is not converted into a replacement selection");
+                await main.AnalyzeAsync();
+                Check(main.Pattern.SelectionLength == 0 && main.Pattern.CaretOffset == position,
+                    "main asynchronous preview preserves the insertion point");
+            }
+        }
+        main.Message.Text = originalMessage;
+        Field<TabControl>(main, "tabs").SelectedIndex = 0;
 
         main.Pattern.Text = "404";
         await main.AnalyzeAsync();
@@ -161,6 +179,12 @@ internal static class Checks
 
         var mapping = new MappingDialog(MainWindow.Example, "status=404 message=Resource missing");
         var mappingTask = mapping.ShowDialog<string?>(main);
+        var catalogPicker = Field<ComboBox>(mapping, "fields");
+        catalogPicker.SelectedItem = catalogPicker.Items.Cast<EventFieldDefinition>().Single(f => f.Field == "event.sourcePort");
+        Check(Field<TextBlock>(mapping, "fieldDetails").Text!.Contains("65535") &&
+            catalogPicker.SelectedItem.ToString()!.Contains("Integer"), "field catalog shows type and range");
+        // Clear the draft field introduced by choosing a catalog entry.
+        Controls<TextBox>(mapping).Single(t => t.Text == "event.sourcePort").Text = "";
         await Until(() => Controls<TextBlock>(mapping).Any(t => t.Text == "Resource missing"));
         Check(Controls<TextBlock>(mapping).Any(t => t.Text == "404"), "event mapping shows token snippets from the sample message");
         var mappedExpression = Controls<TextBox>(mapping).Single(t => t.Text == "Message");
@@ -170,6 +194,36 @@ internal static class Checks
         await Capture(mapping, "mapping");
         Click(mapping, "Apply to configuration");
         Check(new PropertiesDocument((await mappingTask)!).Get("event.message") == "Message", "mapping dialog preserves direct assignments");
+        string catalogPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        try
+        {
+            var catalogStore = new EventFieldCatalog(catalogPath);
+            var editor = new FieldCatalogDialog(catalogStore, "event.sourcePort");
+            var editorTask = editor.ShowDialog(main);
+            Field<TextBox>(editor, "length").Text = "Custom constraint";
+            Click(editor, "Save definition");
+            Check(catalogStore.Load()["event.sourcePort"].Length == "Custom constraint", "catalog override is saved separately");
+            Click(editor, "Remove override / custom field");
+            Check(catalogStore.Load()["event.sourcePort"].Length == "n/a", "catalog built-in can be restored");
+            Click(editor, "New field");
+            Field<TextBox>(editor, "field").Text = "event.futureVendorField";
+            Field<TextBox>(editor, "type").Text = "FutureType";
+            Field<TextBox>(editor, "length").Text = "2048";
+            Click(editor, "Save definition");
+            await Capture(editor, "field-catalog");
+            editor.Close();
+            await editorTask;
+            var customMapping = new MappingDialog(MainWindow.Example, catalogStore: new EventFieldCatalog(catalogPath));
+            var customTask = customMapping.ShowDialog<string?>(main);
+            var customPicker = Field<ComboBox>(customMapping, "fields");
+            customPicker.SelectedItem = customPicker.Items.Cast<EventFieldDefinition>().Single(f => f.Field == "event.futureVendorField");
+            Check(Field<TextBlock>(customMapping, "fieldDetails").Text!.Contains("FutureType") &&
+                Field<TextBlock>(customMapping, "fieldDetails").Text!.Contains("Local definition"), "saved custom field appears with metadata after reopening mapping");
+            await Capture(customMapping, "mapping-catalog");
+            customMapping.Close();
+            await customTask;
+        }
+        finally { if (File.Exists(catalogPath)) File.Delete(catalogPath); }
         var suggestion = new SuggestParserDialog("LOGIN user=alice result=ok\nLOGIN user=bob result=failed\nCONNECT host=server dport=443");
         var suggestionTask = suggestion.ShowDialog<string?>(main);
         Click(suggestion, "Generate and validate");
@@ -211,6 +265,26 @@ internal static class Checks
         await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
         Check(Field<TextEditor>(sub, "result").Text.Contains("active route"), "switching patterns refreshes the selected preview automatically");
         Field<CheckBox>(sub, "automatic").IsChecked = false;
+        string beforeTypingCheck = fields["regex"].Text;
+        foreach (string suffix in new[] { "", " REQUIRED" })
+        {
+            fields["regex"].Text = @"(user)=([a-z]+) result=(\w+)" + suffix;
+            await sub.TestAsync();
+            Field<TabControl>(sub, "previewTabs").SelectedIndex = 1;
+            fields["regex"].Focus();
+            foreach (int position in new[] { 2, 9, 11 })
+            {
+                fields["regex"].Select(position, 0);
+                Check(fields["regex"].SelectionLength == 0 && fields["regex"].CaretOffset == position,
+                    "submessage caret inside groups/classes does not select typed regex text");
+                await sub.TestAsync();
+                Check(fields["regex"].SelectionLength == 0 && fields["regex"].CaretOffset == position,
+                    "submessage preview refresh preserves the insertion point");
+            }
+        }
+        fields["regex"].Text = beforeTypingCheck;
+        Field<TabControl>(sub, "previewTabs").SelectedIndex = 0;
+        await sub.TestAsync();
         fields["regex"].CaretOffset = fields["regex"].Text.IndexOf('(') + 1;
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected), "submessage group navigation highlights the body token");
         Click(sub, "Element ▶");

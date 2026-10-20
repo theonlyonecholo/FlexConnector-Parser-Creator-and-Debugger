@@ -6,6 +6,14 @@ internal static class HelpTopics
 {
     public static readonly HelpTopic[] All =
     [
+        new("field-catalog", "Event field catalog: types, limits and local definitions", """
+In Event mapping, the field catalog shows each field's type and documented length. Selecting a field displays ranges, special restrictions and the documentation source. These are reference limits: the preview does not truncate values or run ArcSight conversions.
+Built-ins follow the OpenText FlexConnector CE 24.3 guide (July 2024), pages 184–189. A length of n/a differs from an unspecified limit. Source ambiguities are marked. Verify limits for the deployed connector and destination.
+Manage fields opens the local catalog editor. New field creates a definition; Save definition persists its key, type, length, restrictions and source. Editing a built-in creates a local override. Remove override / custom field restores the vendor entry or removes a custom entry. Existing parser assignments are retained.
+Save before switching entries or closing; unsaved form changes are discarded. Saved catalog changes remain even if you cancel the mapping dialog.
+Definitions are stored in event-fields.json under the user's local application-data directory / ArcSightParserDesigner. The exact path is shown in the manager. They survive restarts and upgrades. No server is contacted.
+Adding an entry does not create a field in ArcSight's schema. Verify target support. Type names are editable for future vendor additions, but defining a type does not implement its conversion.
+"""),
         new("presets", "Regex preset library and selection groups", """
 The cross-platform main and submessage regex editors share Regex presets. Select literal text in the regex editor, such as 192.0.2.1, then open the library, choose IPv4 and click Check and replace selection.
 The preset must match the entire selection as literal text, not as another regex. A mismatch, invalid expression or timeout leaves the editor unchanged. The resulting full regex must also compile. A single example does not prove that other logs still match.

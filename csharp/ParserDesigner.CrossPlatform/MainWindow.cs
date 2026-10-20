@@ -46,7 +46,7 @@ internal sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.4.0", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.5.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -153,7 +153,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.4.0";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.5.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
@@ -210,7 +210,12 @@ internal sealed class MainWindow : Window
             result = analyzed;
             elementResults = elementDebug.Elements;
             elementPreview = elementDebug;
-            elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length})  {e.Expression}  → " + (e.Captures.Count == 0 ? "no capture" : string.Join(", ", e.Captures.Take(12).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
+            selectingElement = true;
+            try
+            {
+                elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length})  {e.Expression}  → " + (e.Captures.Count == 0 ? "no capture" : string.Join(", ", e.Captures.Take(12).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
+            }
+            finally { selectingElement = false; }
             groups = RegexGroupMap.Build(pattern);
             PropertiesDocument? doc = null;
             string diagnostics = "Engine: .NET, not Java. Debug shows captures, not backtracking. Positions are UTF-16 indices.\nPreview switches are not saved to the parser.\n";
@@ -270,7 +275,15 @@ internal sealed class MainWindow : Window
             int caret = Pattern.CaretOffset;
             var selectedElement = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
             if (selectedElement is not null)
-                elements.SelectedIndex = elementResults.ToList().IndexOf(selectedElement);
+            {
+                selectingElement = true;
+                try
+                {
+                    elements.SelectedIndex = elementResults.ToList().IndexOf(selectedElement);
+                }
+                finally { selectingElement = false; }
+                SelectElement(selectRegex: false);
+            }
             return;
         }
         if (result is null)
@@ -441,15 +454,17 @@ internal sealed class MainWindow : Window
         elements.SelectedIndex = Math.Clamp(elements.SelectedIndex < 0 ? 0 : elements.SelectedIndex + direction, 0, elementResults.Count - 1);
         elements.ScrollIntoView(elements.SelectedItem!);
     }
-    private void SelectElement()
+    private void SelectElement(bool selectRegex = true)
     {
-        if (elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
+        if (selectingElement || elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
             return;
         var element = elementResults[elements.SelectedIndex];
         selectingElement = true;
         try
         {
-            Pattern.Select(element.Start, element.Length);
+            // Caret-driven highlighting must never turn typed text into a replacement selection.
+            if (selectRegex)
+                Pattern.Select(element.Start, element.Length);
         }
         finally { selectingElement = false; }
         painter.Paint(Message, element.Captures.Select(s => new Highlight(s.Index, s.Length, 0, true)));

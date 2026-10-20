@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0 — 2026-10-20
+
+- Show documented event-field types, lengths, ranges, restrictions and source/version in the mapping catalog.
+- Add persistent local field definitions and overrides, with restoration of built-ins.
+- Use locally defined types in mapping diagnostics without changing existing parser assignments.
+- Update metadata from the public FlexConnector CE 24.3 guide, including oldFileSize/oldFileType and 4000-length custom strings.
+- Preserve the regex insertion point during caret-driven element highlighting and asynchronous preview refresh in both editors.
+- Document a public Sysmon parser review and prioritized compatibility improvements.
+
 ## 2.4.0 — 2026-10-20
 
 - Add a shared persistent local regex preset library with create, edit, delete and full-selection validation in the main and submessage editors.

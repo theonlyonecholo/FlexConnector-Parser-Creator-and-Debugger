@@ -930,4 +930,44 @@ Test("Regex presets: replacement preserves alternative scope and rejects mismatc
     Throws<ArgumentException>(() => RegexPresetEditing.Replacement("(", 0, 1, "("));
     Throws<ArgumentException>(() => RegexPresetEditing.Replacement("(123", 1, 3, "[0-9]+"));
 });
+Test("Field catalog: documented lengths, ranges and complete existing field coverage", () =>
+{
+    var fields = EventFieldCatalog.BuiltIn;
+    Check(EventMapping.Fields.Keys.All(fields.ContainsKey));
+    Check(fields["event.deviceCustomString1"].Length == "4000" && fields["event.deviceCustomString1Label"].Length == "1023");
+    Check(fields["event.deviceHostName"].Length == "63" && fields["event.sourceHostName"].Length == "1023");
+    Check(fields["event.sourcePort"].Type == "Integer" && fields["event.sourcePort"].Restrictions == "0 .. 65535");
+    Check(fields["event.deviceCustomNumber1"].Restrictions.StartsWith("-9223372036854775808"));
+    Check(fields["event.oldFileSize"].Type == "Long");
+    Check(fields["event.customerURI"].Length == "Not specified" && fields["event.bytesOut"].Restrictions.Contains("ambiguous"));
+});
+Test("Field catalog: persistence, overrides, restoration and advisory types", () =>
+{
+    string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+    try
+    {
+        var store = new EventFieldCatalog(path);
+        var custom = new EventFieldDefinition("event.myField", "Long", "n/a", "0 .. 100", "User");
+        var overridden = EventFieldCatalog.BuiltIn["event.message"] with
+        {
+            Length = "2048"
+        };
+        store.Save([custom, overridden]);
+        var loaded = new EventFieldCatalog(path).Load();
+        Check(loaded[custom.Field] == custom && loaded["event.message"].Length == "2048");
+        var warnings = EventMapping.Warnings("token[0].name=MyToken\ntoken[0].type=String", [new("event.myField", "MyToken")],
+            loaded.ToDictionary(p => p.Key, p => p.Value.Type));
+        Check(warnings.Any(w => w.Contains("expects Long")) && !warnings.Any(w => w.Contains("unknown field")));
+        string before = File.ReadAllText(path);
+        Throws<FormatException>(() => store.Save([custom, custom]));
+        Throws<FormatException>(() => store.Save([custom with { Field = "event.bad name" }]));
+        Check(File.ReadAllText(path) == before);
+        store.Save([]);
+        Check(!store.Load().ContainsKey(custom.Field) && store.Load()["event.message"].Length == "1023");
+        File.WriteAllText(path, "{broken");
+        Throws<System.Text.Json.JsonException>(() => store.Load());
+        Check(File.ReadAllText(path) == "{broken");
+    }
+    finally { if (File.Exists(path)) File.Delete(path); }
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

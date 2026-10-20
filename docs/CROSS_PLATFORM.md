@@ -1,8 +1,10 @@
-# Cross-platform desktop edition — 2.4.0
+# Cross-platform desktop edition — 2.5.0
 
 This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.0.
 Both regex editors include a persistent local [regex preset library](REGEX_PRESETS.md)
 and a button to wrap selected text in a capturing group.
+Event mapping includes a [field catalog](EVENT_FIELD_CATALOG.md) with documented
+types, lengths and restrictions, plus persistent custom definitions and overrides.
 It is a native desktop application, not a website or a Wine wrapper. The existing
 WinForms edition remains available in its separate Windows solution.
 
@@ -96,7 +98,7 @@ The release was checked on Windows and Ubuntu 26.04 LTS x64 under WSLg.
 Tests exercise real native controls: group highlighting, 100-step undo/redo,
 searchable help, token snippets/formats, mapping/severity export, submessage
 editing, batch routing, filters, selection retention and stale progress handling.
-The 85 core regressions cover parser semantics, file round trips, parser suggestions and regex-element instrumentation. See [Parser assistance](PARSER_ASSISTANCE.md) for the new workflows.
+The 87 core regressions cover parser semantics, file round trips, parser suggestions and regex-element instrumentation. See [Parser assistance](PARSER_ASSISTANCE.md) for the new workflows.
 Native file pickers use each operating system's desktop integration; picker clicks
 are not automated by the regression executable.
 

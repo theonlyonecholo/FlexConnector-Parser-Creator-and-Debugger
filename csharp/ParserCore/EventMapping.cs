@@ -70,13 +70,13 @@ public static class EventMapping
         return doc.Source;
     }
     /// <summary>Returns advisory diagnostics, not a verdict on the complete event produced by a connector.</summary>
-    public static IReadOnlyList<string> Warnings(string source, IReadOnlyList<EventAssignment> assignments)
+    public static IReadOnlyList<string> Warnings(string source, IReadOnlyList<EventAssignment> assignments, IReadOnlyDictionary<string, string>? fieldTypes = null)
     {
         var warnings = new List<string>();
         var tokens = Tokens(source);
         foreach (var a in assignments)
         {
-            if (!Fields.TryGetValue(a.Field, out string? expected))
+            if (!(fieldTypes ?? Fields).TryGetValue(a.Field, out string? expected))
                 warnings.Add(a.Field + ": custom or unknown field; verify it in the target connector.");
             if (tokens.TryGetValue(a.Expression, out string? actual))
             {

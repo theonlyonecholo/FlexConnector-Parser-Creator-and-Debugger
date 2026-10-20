@@ -8,8 +8,14 @@ internal sealed class MappingDialog : Window
 {
     private sealed record MappingRow(TextBox Field, TextBox Expression, TextBlock Snippet, Control Container);
     private readonly List<MappingRow> rows = [];
-    public MappingDialog(string source, string sample = "", string? pattern = null, System.Text.RegularExpressions.RegexOptions options = 0, bool full = false, bool trim = false, int timeoutMs = 250)
+    private readonly ComboBox fields = new() { PlaceholderText = "Field catalog…", MinWidth = 240, MaxWidth = 650 };
+    private readonly TextBlock fieldDetails = Ui.Label("Select a field to see its type, length and restrictions.");
+    public MappingDialog(string source, string sample = "", string? pattern = null, System.Text.RegularExpressions.RegexOptions options = 0, bool full = false, bool trim = false, int timeoutMs = 250, EventFieldCatalog? catalogStore = null)
     {
+        catalogStore ??= new EventFieldCatalog(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ArcSightParserDesigner", "event-fields.json"));
+        var catalog = catalogStore.Load();
+        var localFields = catalogStore.LoadOverrides().Select(f => f.Field).ToHashSet(StringComparer.Ordinal);
         Ui.Setup(this, "Event mapping", 1100, 760);
         var table = new StackPanel { Spacing = 6 };
         var values = new Dictionary<string, string>();
@@ -39,14 +45,20 @@ internal sealed class MappingDialog : Window
         table.Children.Add(Ui.Columns("*,2*,2*,80", Ui.Label("Event field"), Ui.Label("Token / expression"), Ui.Label("Message snippet"), Ui.Label("")));
         var diagnostics = Ui.Label("");
         var field = Ui.Input("", "Target event.fieldName. Choose from the catalog or enter a custom field.");
-        var fields = new ComboBox { ItemsSource = EventMapping.Fields.Keys.Order().ToArray(), PlaceholderText = "Field catalog…", MinWidth = 240 };
-        var type = Ui.Label("Select a target field to see its type.");
+        fields.ItemsSource = catalog.Values.OrderBy(f => f.Field, StringComparer.Ordinal).ToArray();
+        void Describe(string key)
+        {
+            fieldDetails.Text = catalog.TryGetValue(key, out var definition)
+                ? $"{definition.Type} · Documented length: {definition.Length} · {(localFields.Contains(key) ? "Local definition / override" : "Vendor documentation")}\n{definition.Restrictions}\nSource: {definition.Source}"
+                : "Field is not in the catalog. Use Manage fields to define its type and limitations.";
+        }
+        field.TextChanged += (_, _) => Describe(field.Text ?? "");
         fields.SelectionChanged += (_, _) =>
         {
-            if (fields.SelectedItem is string value)
+            if (fields.SelectedItem is EventFieldDefinition definition)
             {
-                field.Text = value;
-                type.Text = "Target type: " + EventMapping.Fields[value];
+                field.Text = definition.Field;
+                Describe(definition.Field);
             }
         };
         var mode = new ComboBox { ItemsSource = new[] { "Token", "Constant", "Expression" }, SelectedIndex = 0 };
@@ -55,7 +67,17 @@ internal sealed class MappingDialog : Window
         value.TextChanged += (_, _) => UpdateSnippet(draftSnippet, value.Text ?? "");
         var tokens = new ComboBox { ItemsSource = EventMapping.Tokens(source).Keys.ToArray(), PlaceholderText = "Declared tokens…", MinWidth = 180 };
         tokens.SelectionChanged += (_, _) => { if (tokens.SelectedItem is string token) { value.Text = token; mode.SelectedIndex = 0; } };
-        void Diagnose() => diagnostics.Text = string.Join("\n", EventMapping.Warnings(source, rows.Select(r => new EventAssignment(r.Field.Text ?? "", r.Expression.Text ?? "")).ToArray()));
+        void Diagnose() => diagnostics.Text = string.Join("\n", EventMapping.Warnings(source, rows.Select(r => new EventAssignment(r.Field.Text ?? "", r.Expression.Text ?? "")).ToArray(),
+            catalog.ToDictionary(p => p.Key, p => p.Value.Type, StringComparer.Ordinal)));
+        var manage = Ui.AsyncButton("Manage fields…", () => Ui.Guard(this, async () =>
+        {
+            await new FieldCatalogDialog(catalogStore, field.Text).ShowDialog(this);
+            catalog = catalogStore.Load();
+            localFields = catalogStore.LoadOverrides().Select(f => f.Field).ToHashSet(StringComparer.Ordinal);
+            fields.ItemsSource = catalog.Values.OrderBy(f => f.Field, StringComparer.Ordinal).ToArray();
+            Describe(field.Text ?? "");
+            Diagnose();
+        }));
         void Add(string target, string expression)
         {
             var f = Ui.Input(target, "Target event field. Duplicate fields are rejected when applying.");
@@ -91,7 +113,8 @@ internal sealed class MappingDialog : Window
             Padding = new Thickness(18),
             Child = Ui.Rows("Auto,Auto,Auto,*,Auto,Auto",
             Ui.Label("Assign tokens, constants or expressions to event fields. Add the draft to the table, then apply.\nSnippets use the first match of the working regex against Message (last repeated capture). Hover for more text.\nValues are raw, before type/format conversion. String constants are shown; other ArcSight operations are not executed."),
-            Ui.Stack(Ui.Bar(fields, tokens), Ui.Columns("*,140,2*", field, mode, value), draftSnippet), Ui.Bar(add, type),
+            Ui.Stack(Ui.Bar(fields, manage, tokens), Ui.Columns("*,140,2*", field, mode, value), draftSnippet),
+            Ui.Stack(Ui.Bar(add), new ScrollViewer { MaxHeight = 130, Content = fieldDetails }),
             new ScrollViewer { Content = table }, new ScrollViewer { MaxHeight = 120, Content = diagnostics },
             Ui.Bar(Ui.AsyncButton("Apply to configuration", () => Ui.Guard(this, () =>
             {

@@ -386,8 +386,13 @@ internal sealed class SubmessagesDialog : Window
             : debug.Elements?.IsPartial == true ? debug.Elements.Summary : debug.Status;
         captures.ItemsSource = captureResult?.Rows.Select(r => new CaptureItem(r,
             r.Group == 0 ? "Entire body match" : r.Group <= names.Length ? names[r.Group - 1].Trim() : "$" + r.Group)).ToArray();
-        elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "
-            + (e.Captures.Count == 0 ? "no final capture" : string.Join(", ", e.Captures.Take(10).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
+        selectingElement = true;
+        try
+        {
+            elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "
+                + (e.Captures.Count == 0 ? "no final capture" : string.Join(", ", e.Captures.Take(10).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
+        }
+        finally { selectingElement = false; }
         Paint();
         // Editing can leave the caret inside a group without another caret event.
         // Restore its visual association after the asynchronous preview completes.
@@ -403,7 +408,15 @@ internal sealed class SubmessagesDialog : Window
         {
             var element = elementResults.Where(e => e.Start <= caret && caret < e.Start + e.Length).OrderBy(e => e.Length).FirstOrDefault();
             if (element is not null)
-                elements.SelectedIndex = elementResults.ToList().IndexOf(element);
+            {
+                selectingElement = true;
+                try
+                {
+                    elements.SelectedIndex = elementResults.ToList().IndexOf(element);
+                }
+                finally { selectingElement = false; }
+                SelectElement(selectRegex: false);
+            }
             return;
         }
         var group = RegexGroupMap.At(RegexGroupMap.Build(fields["regex"].Text), caret);
@@ -471,16 +484,19 @@ internal sealed class SubmessagesDialog : Window
         elements.SelectedIndex = Math.Clamp(elements.SelectedIndex < 0 ? 0 : elements.SelectedIndex + direction, 0, elementResults.Count - 1);
         elements.ScrollIntoView(elements.SelectedItem!);
     }
-    private void SelectElement()
+    private void SelectElement(bool selectRegex = true)
     {
-        if (elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
+        if (selectingElement || elements.SelectedIndex < 0 || elements.SelectedIndex >= elementResults.Count)
             return;
         var element = elementResults[elements.SelectedIndex];
         selectingElement = true;
         try
         {
-            fields["regex"].Select(element.Start, element.Length);
-            fields["regex"].ScrollToLine(fields["regex"].Document.GetLineByOffset(element.Start).LineNumber);
+            if (selectRegex)
+            {
+                fields["regex"].Select(element.Start, element.Length);
+                fields["regex"].ScrollToLine(fields["regex"].Document.GetLineByOffset(element.Start).LineNumber);
+            }
         }
         finally { selectingElement = false; }
         painter.Paint(sample, element.Captures.Select(c => new Highlight(c.Index, c.Length, 0, true)));
