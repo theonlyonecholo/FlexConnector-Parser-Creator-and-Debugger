@@ -9,7 +9,7 @@ Build a parser from sample logs, inspect capture groups, define tokens and event
 mapping, and test submessage variants against an entire log file.
 
 The new application uses **C# / Avalonia / .NET 10**. Its interface and built-in
-help, source comments and documentation are English. Current release: **2.6.0**.
+help, source comments and documentation are English. Current release: **2.7.0**.
 The native interface has been tested on Windows and Ubuntu 26.04 under WSLg.
 macOS targets are available from source but have not been runtime-tested.
 The original WinForms application remains available for Windows.
@@ -26,6 +26,7 @@ See [release notes](CHANGELOG.md) and the [cross-platform guide](docs/CROSS_PLAT
 - Token generation with captured-text snippets, type selection and a format builder.
 - Event mapping editor for tokens, constants and ArcSight expressions.
 - Multiple submessages, ordered patterns and default routing.
+- [Submessage ID previews, search and field selection](docs/SUBMESSAGE_WORKBENCH.md).
 - Batch log testing with filters, navigation and parser editing.
 - Severity rules and extra processor configuration templates.
 - Java properties escaping and preservation of unrelated configuration blocks.

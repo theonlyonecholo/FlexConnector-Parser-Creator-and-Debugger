@@ -47,7 +47,7 @@ internal static class Checks
     }
     private static void Click(Control owner, string label)
     {
-        var button = Controls<Button>(owner).Single(b => b.Content?.ToString() == label);
+        var button = Controls<Button>(owner).Distinct().Single(b => b.Content?.ToString() == label);
         button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
     }
     private static async Task Until(Func<bool> condition)
@@ -250,6 +250,7 @@ internal static class Checks
         Check(Field<ComboBox>(sub, "body").Items.Cast<string>().Contains("Body") &&
             Field<ComboBox>(sub, "idToken").Items.Cast<string>().Contains("MessageID"), "token dropdowns list declared main tokens");
         Check(Field<TextEditor>(sub, "result").Text.Contains("submessage[0].pattern[0]", StringComparison.Ordinal), "submessage test reports selected route");
+        Check(Field<TextEditor>(sub, "idPreview").Text == "LOGIN", "submessage ID preview shows the extracted routing value");
         var fields = Field<Dictionary<string, TextEditor>>(sub, "fields");
         Check(Field<CheckBox>(sub, "automatic").IsChecked == true, "submessage live preview is enabled by default");
         fields["regex"].Text += "(?:)";
@@ -340,6 +341,45 @@ internal static class Checks
         Click(sub, "Apply to configuration");
         string updated = (await subTask)!;
         Check(new PropertiesDocument(updated).Get("submessage[0].pattern.count") == "3", "submessage editor adds and exports an alternative pattern");
+
+        var urlDoc = new PropertiesDocument(source);
+        urlDoc.Set("submessage[0].pattern[0].regex", @"(https)://([^/]+)(/.*)");
+        var urlSub = new SubmessagesDialog(urlDoc.Source, "id=LOGIN body=https://example.com/path?q=1", 0, 0);
+        var urlTask = urlSub.ShowDialog<string?>(main);
+        await Until(() => Field<CaptureHighlighter>(urlSub, "painter").Spans.Count == 4);
+        var urlFields = Field<Dictionary<string, TextEditor>>(urlSub, "fields");
+        urlFields["regex"].CaretOffset = 2;
+        var urlEditor = Field<TextEditor>(urlSub, "sample");
+        Check(!urlEditor.Options.EnableHyperlinks && !urlEditor.Options.EnableEmailHyperlinks &&
+            !main.Message.Options.EnableHyperlinks, "URLs remain plain text in main and submessage previews");
+        Check(Field<CaptureHighlighter>(urlSub, "painter").Spans.Any(s => s.Selected && s.Length == 5),
+            "a capture inside a URL can be highlighted independently");
+        await Capture(urlSub, "submessage-url");
+        urlFields["regex"].Text += "(?:)";
+        Field<TextBox>(urlSub, "search").Text = "destinationPort";
+        Check(Field<ListBox>(urlSub, "nodes").ItemCount == 2, "submessage search finds mapping fields and retains parent context");
+        Field<TextBox>(urlSub, "search").Text = "does-not-exist";
+        Check(Field<ListBox>(urlSub, "nodes").ItemCount == 0, "submessage search supports no results");
+        Field<TextBox>(urlSub, "search").Text = "LOGIN";
+        Field<ListBox>(urlSub, "nodes").SelectedIndex = 1;
+        Check(urlFields["regex"].Text.EndsWith("(?:)"), "search preserves unsaved pattern edits");
+        Field<TextBox>(urlSub, "search").Text = "";
+        urlFields["fields"].CaretOffset = 0;
+        Field<TabControl>(urlSub, "previewTabs").SelectedIndex = 2;
+        Click(urlSub, "Choose ArcSight field…");
+        var lifetime = (IClassicDesktopStyleApplicationLifetime)Application.Current!.ApplicationLifetime!;
+        await Until(() => lifetime.Windows.OfType<EventFieldPicker>().Any());
+        var picker = lifetime.Windows.OfType<EventFieldPicker>().Single();
+        Field<TextBox>(picker, "search").Text = "requestUrl";
+        Field<ListBox>(picker, "list").SelectedIndex = 0;
+        await Capture(picker, "submessage-field-picker");
+        Click(picker, "Use field");
+        await Until(() => urlFields["fields"].Text.StartsWith("event.requestUrl,"));
+        Check(urlFields["fields"].Text.EndsWith(",event.deviceAction"), "field picker replaces only the field slot at the caret");
+        urlFields["fields"].Document.UndoStack.Undo();
+        Check(urlFields["fields"].Text.StartsWith("event.sourceUserName,"), "field choice is a single undo step");
+        urlSub.Close();
+        await urlTask;
 
         var batch = new BatchWindow(source);
         var batchTask = batch.ShowDialog(main);

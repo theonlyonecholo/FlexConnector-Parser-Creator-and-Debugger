@@ -1059,4 +1059,21 @@ Test("Expected event fixtures: pass, differences, absence, null and incomplete s
     cancel.Cancel();
     Throws<OperationCanceledException>(() => EventExpectations.Run(PipelineExample(), json, root, cancel.Token));
 });
+Test("Submessage ID preview: independent extraction, empty and missing captures", () =>
+{
+    var doc = new PropertiesDocument("regex=id=(\\w*) body=(.*)\ntoken.count=2\ntoken[0].name=ID\ntoken[1].name=Body\nsubmessage.count=0\n");
+    doc.Set("regex", @"id=(\w*) body=(.*)");
+    doc.Set("submessage.messageid.token", "ID");
+    doc.Set("submessage.token", "Body");
+    Check(SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=https://example.com/a", -1, -1).IdValue == "LOGIN");
+    var empty = SubmessageDebugger.Analyze(doc.Source, "id= body=x", -1, -1);
+    Check(empty.IdValue == "" && empty.IdStatus.Contains("empty capture"));
+    Check(SubmessageDebugger.Analyze(doc.Source, "invalid", -1, -1).IdValue is null);
+    doc.Set("submessage.token", "Unknown");
+    Check(SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=x", -1, -1).IdValue == "LOGIN");
+    doc.Set("submessage.messageid.token", "Unknown");
+    Check(SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=x", -1, -1).IdStatus.Contains("not declared"));
+    doc.Set("submessage.messageid.token", "");
+    Check(SubmessageDebugger.Analyze(doc.Source, "id=LOGIN body=x", -1, -1).IdStatus.Contains("No ID token"));
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

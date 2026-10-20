@@ -19,6 +19,8 @@ internal static class Ui
         IsReadOnly = readOnly,
         WordWrap = true,
         ShowLineNumbers = false,
+        // Logs and regexes are plain text. Link elements interfere with capture coloring.
+        Options = new AvaloniaEdit.TextEditorOptions { EnableHyperlinks = false, EnableEmailHyperlinks = false },
         FontFamily = Mono,
         FontSize = 14,
         MinHeight = 60,

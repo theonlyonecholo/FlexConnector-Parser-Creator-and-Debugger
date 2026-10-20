@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.0 — 2026-10-20
+
+- Show the raw routing ID token and its extraction status above the submessage body.
+- Keep URLs and email addresses as plain editor text so capture highlights can split them correctly.
+- Add searchable ArcSight field selection to submessage mappings, sharing the persistent custom field catalog.
+- Search submessage IDs, patterns and mapping values while preserving draft edits and original indices.
+- Check token/field behavior against the supplied FlexConnector 8.4.3 guide (October 2023).
+
 ## 2.6.0 — 2026-10-20
 
 - Detect unsupported parser families and report duplicate property keys with source lines.

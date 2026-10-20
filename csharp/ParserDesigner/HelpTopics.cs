@@ -209,6 +209,8 @@ Message ID: the exact value this definition handles.
 Default for unknown IDs: a definition without a messageid property. Used for undefined IDs, not when all patterns for a known ID fail.
 The default can contain several patterns, tried in order until the first match. Select Default for unknown IDs to omit messageid; an explicitly empty messageid property is different.
 Automatic preview is enabled by default in the cross-platform workbench. Regex edits and pattern selection refresh highlights after a short pause; turn it off to test manually with F5.
+The cross-platform workbench shows MESSAGE ID INPUT separately from the body. This is the raw main-token value named by submessage.messageid.token; the status distinguishes an empty capture, an undeclared token and failed extraction. Search submessages by ID, regex or mapping text; filtering preserves draft edits and original indices. In Fields / types, Choose ArcSight field opens a searchable catalog with types, restrictions and persistent custom definitions. Inside a field entry it replaces that comma-separated entry; at the end it appends a field. Undo reverses one choice. Review mappings/types/formats when changing field order. URLs and email addresses remain plain text so highlights can cover any part.
+
 Application limits: 1,000 submessages (indices 0–999), 1,000 patterns per submessage and 5,000 patterns total. These are local application limits.
 regex: decoded pattern for the entire submessage body.
 fields: comma-separated target event fields in capturing group order.

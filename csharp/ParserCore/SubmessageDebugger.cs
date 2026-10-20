@@ -1,7 +1,14 @@
 namespace ParserCore;
 
 public sealed record SubmessageDebugResult(ParserResult Route, DebugResult? Captures,
-    ElementDebugResult? Elements, string Status, string? BodyText = null, int BodyOffset = 0);
+    ElementDebugResult? Elements, string Status, string? BodyText = null, int BodyOffset = 0)
+{
+    public string? IdValue
+    {
+        get; init;
+    }
+    public string IdStatus { get; init; } = "";
+}
 
 /// <summary>Tests the actual route and independently previews a selected pattern against the full body token.</summary>
 public static class SubmessageDebugger
@@ -14,6 +21,19 @@ public static class SubmessageDebugger
         var mainDoc = new PropertiesDocument(source);
         mainDoc.Set("submessage.count", "0");
         var main = new ParserEvaluator(mainDoc.Source).Evaluate(input, true, cancellation);
+        string idName = doc.Get("submessage.messageid.token");
+        var idCapture = main.Captures.FirstOrDefault(c => c.Stage == "Token" && c.Name == idName);
+        string? idValue = idCapture is null ? null : input.Substring(idCapture.Index, idCapture.Length);
+        string idStatus = idName.Length == 0 ? "No ID token configured"
+            : !EventMapping.Tokens(source).ContainsKey(idName) ? $"Token '{idName}' is not declared"
+            : !main.MainMatched ? "ID unavailable: main regex did not match"
+            : idValue is null ? $"Token '{idName}' was not captured"
+            : $"{idName} · {idValue.Length} characters" + (idValue.Length == 0 ? " · empty capture" : "");
+        SubmessageDebugResult WithId(SubmessageDebugResult value) => value with
+        {
+            IdValue = idValue,
+            IdStatus = idStatus
+        };
         ParserResult route;
         try
         {
@@ -34,15 +54,15 @@ public static class SubmessageDebugger
             if (!main.MainMatched && (doc.Get("regex").Contains(@"\t", StringComparison.Ordinal) || doc.Get("regex").Contains('\t'))
                 && !input.Contains('\t') && input.Contains('\u2003'))
                 reason += " The regex expects TAB (U+0009), but this input has EM SPACE (U+2003) and no tabs. Load the original log to preserve its separators.";
-            return new(route, null, null, reason);
+            return WithId(new(route, null, null, reason));
         }
         // Preserve the complete raw token, including whitespace and values longer than display snippets.
         string text = input.Substring(body.Index, body.Length);
         if (message < 0 || pattern < 0)
-            return new(route, null, null, "Select a pattern to inspect its captures and regex elements.", text, body.Index);
+            return WithId(new(route, null, null, "Select a pattern to inspect its captures and regex elements.", text, body.Index));
         string key = $"submessage[{message}].pattern[{pattern}].regex";
         if (!doc.Values.ContainsKey(key))
-            return new(route, null, null, "The selected pattern no longer exists.", text, body.Index);
+            return WithId(new(route, null, null, "The selected pattern no longer exists.", text, body.Index));
         string regex = doc.Get(key);
         bool trim = doc.Get("trim.submessage").Equals("true", StringComparison.OrdinalIgnoreCase);
         cancellation.ThrowIfCancellationRequested();
@@ -70,6 +90,6 @@ public static class SubmessageDebugger
         bool used = route.UsedSubmessage == message && route.UsedPattern == pattern;
         string status = used ? "Selected pattern is the active route."
             : "Independent selected-pattern preview: this pattern was NOT used by routing (ID or pattern order may differ).";
-        return new(route, captures, elements, status + " " + (elements.IsPartial ? elements.Summary : captures.Error ?? captures.Status), text, body.Index);
+        return WithId(new(route, captures, elements, status + " " + (elements.IsPartial ? elements.Summary : captures.Error ?? captures.Status), text, body.Index));
     }
 }

@@ -17,6 +17,9 @@ internal sealed class SubmessagesDialog : Window
     private readonly string source;
     private readonly SubmessageConfiguration model;
     private readonly ListBox nodes = new();
+    private readonly TextBox search = Ui.Input("", "Search message IDs, regexes and mapping values. Original definition/pattern indices are retained.");
+    private readonly TextEditor idPreview = Ui.Editor(readOnly: true);
+    private readonly TextBlock idStatus = Ui.Label("MESSAGE ID INPUT · not tested");
     private readonly ComboBox body, idToken;
     private readonly TextBox messageId;
     private readonly CheckBox trim, fallback;
@@ -49,6 +52,7 @@ internal sealed class SubmessagesDialog : Window
     {
         this.source = source;
         model = SubmessageConfiguration.Load(source);
+        search.PlaceholderText = "Search submessages…";
         Ui.Setup(this, "Submessages · pattern workbench", 1280, 940);
         MinWidth = 1000;
         MinHeight = 760;
@@ -112,11 +116,15 @@ internal sealed class SubmessagesDialog : Window
             }
             input.TextChanged += (_, _) => Changed();
         }
+        mappings.Children.Insert(0, Ui.Bar(
+            Ui.AsyncButton("Choose ArcSight field…", () => Ui.Guard(this, ChooseFieldAsync),
+                "Replace the comma-separated field at the caret, or append at the end. Field order corresponds to mappings or capture groups.")));
         fields["regex"].TextArea.Caret.PositionChanged += (_, _) => HighlightGroup();
         var tools = Ui.Bar(
             Ui.Button("+ Submessage", () =>
             {
                 Store();
+                ClearSearch();
                 var message = new SubmessageDefinition { MessageId = "NEW_" + model.Messages.Count };
                 message.Patterns.Add(SubmessageConfiguration.NewPattern());
                 model.Messages.Add(message);
@@ -127,6 +135,7 @@ internal sealed class SubmessagesDialog : Window
                 if (selected is null)
                     return;
                 Store();
+                ClearSearch();
                 var patterns = model.Messages[selected.Message].Patterns;
                 patterns.Add(SubmessageConfiguration.NewPattern());
                 Refresh(selected.Message, patterns.Count - 1);
@@ -150,12 +159,13 @@ internal sealed class SubmessagesDialog : Window
             Ui.AsyncButton("Regex presets…", () => Ui.Guard(this, () => RegexEditorActions.PresetsAsync(this, fields["regex"]))),
             Ui.AsyncButton("Group (…)", () => Ui.Guard(this, () => { RegexEditorActions.Group(fields["regex"]); return Task.CompletedTask; }), "Wrap the selection in a capturing group. Review field mappings after group numbers change."),
             Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)), automatic);
-        var right = Ui.Rows("Auto,Auto,85,Auto,90,Auto,Auto,*",
-            selectionTitle, bodyStatus, sample,
+        idPreview.MinHeight = 36;
+        var right = Ui.Rows("Auto,Auto,36,Auto,85,Auto,90,Auto,Auto,*",
+            selectionTitle, idStatus, idPreview, bodyStatus, sample,
             Ui.Label("SELECTED REGEX · click a group or use Regex elements; long expressions wrap"), fields["regex"],
             controls, Ui.Stack(routeStatus, previewStatus), previewTabs);
-        var navigation = Ui.Rows("Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
-            tools, Ui.Stack(Ui.Label("Message ID"), messageId, fallback),
+        var navigation = Ui.Rows("Auto,Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
+            tools, Ui.Stack(Ui.Label("Message ID"), messageId, fallback), search,
             Ui.Label("Select a pattern below to edit it. The first matching pattern wins.\nDefault = no messageid property; tries its patterns for unknown IDs.\nApp limits: 1,000 definitions; 1,000 patterns per definition; 5,000 patterns total."), nodes);
         Content = new Border
         {
@@ -167,11 +177,18 @@ internal sealed class SubmessagesDialog : Window
                 Ui.Button("Cancel", () => Close()), Ui.Help(this, "submessages")))
         };
         nodes.SelectionChanged += (_, _) => SelectNode();
+        search.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != TextBox.TextProperty || loading)
+                return;
+            Store();
+            Refresh(selected?.Message ?? 0, selected?.Pattern);
+        };
         // TextBox.TextChanged is deferred; observe the property synchronously so loading
         // another node cannot cancel a test started immediately after that load.
         messageId.PropertyChanged += (_, e) => { if (e.Property == TextBox.TextProperty) Changed(); };
         body.SelectionChanged += (_, _) => InputChanged();
-        idToken.SelectionChanged += (_, _) => { Changed(); if (!loading && !closed) debounce.Start(); };
+        idToken.SelectionChanged += (_, _) => InputChanged();
         trim.IsCheckedChanged += (_, _) => Changed();
         fallback.IsCheckedChanged += (_, _) => { messageId.IsEnabled = fallback.IsChecked != true; Changed(); };
         originalLog.TextChanged += (_, _) => InputChanged();
@@ -213,6 +230,8 @@ internal sealed class SubmessagesDialog : Window
             return;
         Changed();
         sample.Text = "";
+        idPreview.Text = "";
+        idStatus.Text = "MESSAGE ID INPUT · extracting selected token…";
         bodyStatus.Text = "SUBMESSAGE INPUT · extracting selected token…";
         if (!closed)
             debounce.Start();
@@ -251,7 +270,7 @@ internal sealed class SubmessagesDialog : Window
         try
         {
             var definition = selected is null ? null : model.Messages[selected.Message];
-            selectionTitle.Text = selected is null ? "Add a submessage to get started" : $"submessage[{selected.Message}] · {definition?.MessageId ?? "DEFAULT"}" + (selected.Pattern is int selectedPattern ? $" · pattern[{selectedPattern}]" : " · select a pattern below");
+            selectionTitle.Text = selected is null ? string.IsNullOrWhiteSpace(search.Text) ? "Add a submessage to get started" : "No matching submessages" : $"submessage[{selected.Message}] · {definition?.MessageId ?? "DEFAULT"}" + (selected.Pattern is int selectedPattern ? $" · pattern[{selectedPattern}]" : " · select a pattern below");
             messageId.Text = definition?.MessageId ?? "";
             fallback.IsChecked = definition?.MessageId is null;
             messageId.IsEnabled = definition is not null && fallback.IsChecked != true;
@@ -264,14 +283,30 @@ internal sealed class SubmessagesDialog : Window
         }
         finally { loading = false; }
     }
+    private void ClearSearch()
+    {
+        loading = true;
+        try
+        {
+            search.Text = "";
+        }
+        finally { loading = false; }
+    }
     private void Refresh(int message, int? pattern)
     {
         loading = true;
         var items = new List<Node>();
         for (int i = 0; i < model.Messages.Count; i++)
         {
+            string query = search.Text?.Trim() ?? "";
+            var definition = model.Messages[i];
+            bool definitionMatches = $"submessage[{i}] {definition.MessageId ?? "DEFAULT"}".Contains(query, StringComparison.OrdinalIgnoreCase);
+            var visiblePatterns = Enumerable.Range(0, definition.Patterns.Count).Where(p =>
+                definitionMatches || $"pattern[{p}] {string.Join(" ", definition.Patterns[p].Values)}".Contains(query, StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (!definitionMatches && visiblePatterns.Length == 0)
+                continue;
             items.Add(new(i, null, $"submessage[{i}] · {model.Messages[i].MessageId ?? "DEFAULT"}"));
-            for (int p = 0; p < model.Messages[i].Patterns.Count; p++)
+            foreach (int p in visiblePatterns)
                 items.Add(new(i, p, $"    pattern[{p}]"));
         }
         nodes.ItemsSource = items;
@@ -280,6 +315,29 @@ internal sealed class SubmessagesDialog : Window
         loading = false;
         LoadNode();
         Changed();
+    }
+    private async Task ChooseFieldAsync()
+    {
+        if (selected?.Pattern is null)
+            throw new FormatException("Select a pattern before choosing a field.");
+        var editor = fields["fields"];
+        int caret = editor.CaretOffset;
+        string? field = await new EventFieldPicker().ShowDialog<string?>(this);
+        if (field is null)
+            return;
+        string text = editor.Text;
+        // At the end append; inside an existing entry replace that whole entry.
+        int start = caret == 0 ? 0 : text.LastIndexOf(',', Math.Min(caret - 1, text.Length - 1)) + 1;
+        int end = text.IndexOf(',', caret);
+        if (end < 0)
+            end = text.Length;
+        if (caret == text.Length && text.TrimEnd().Length > 0 && !text.TrimEnd().EndsWith(','))
+        {
+            start = end = text.Length;
+            field = "," + field;
+        }
+        editor.Document.Replace(start, end - start, field);
+        editor.CaretOffset = start + field.Length;
     }
     private void Remove()
     {
@@ -345,6 +403,8 @@ internal sealed class SubmessagesDialog : Window
         if (closed || current != revision || cancellation.IsCancellationRequested)
             return;
         evaluated = debug.Route;
+        idPreview.Text = debug.IdValue ?? "";
+        idStatus.Text = "MESSAGE ID INPUT · " + debug.IdStatus;
         sample.Text = debug.BodyText ?? "";
         bodyStatus.Text = debug.BodyText is null
             ? "SUBMESSAGE INPUT · " + debug.Status
@@ -446,6 +506,8 @@ internal sealed class SubmessagesDialog : Window
                 return;
             previewStatus.Text = "Unable to test draft: " + ex.Message;
             bodyStatus.Text = "SUBMESSAGE INPUT · " + ex.Message;
+            idPreview.Text = "";
+            idStatus.Text = "MESSAGE ID INPUT · unavailable: " + ex.Message;
             result.Text = ex.Message;
         }
     }
