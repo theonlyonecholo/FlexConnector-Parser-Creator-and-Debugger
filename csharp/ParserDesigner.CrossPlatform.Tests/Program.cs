@@ -5,6 +5,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.LogicalTree;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit;
 using ParserCore;
 using ParserDesigner.CrossPlatform;
@@ -37,6 +38,59 @@ internal sealed class TestApp : DesignerApp
 
 internal static class Checks
 {
+    private static readonly HashSet<string> auditedWindows = [];
+    private static readonly List<string> layoutProblems = [];
+    private static async Task AuditCompactLayout(Window window, string name)
+    {
+        string tabs = string.Join(",", Controls<TabControl>(window).Distinct().Select(t => t.SelectedIndex));
+        if (!auditedWindows.Add(window.GetType().Name + "/" + window.Title + "/" + tabs))
+            return;
+        double width = window.Width, height = window.Height;
+        window.Width = window.MinWidth;
+        window.Height = window.MinHeight;
+        await Task.Delay(200);
+        foreach (var button in Controls<Button>(window).Distinct().Where(b => b.Classes.Contains("action")))
+        {
+            Check(button.ContentTemplate is not null, $"{window.GetType().Name}: icon for {button.Content}");
+            Check(!System.Text.RegularExpressions.Regex.IsMatch(button.Content?.ToString() ?? "", @"[◀▶↑↓→]|^\+"),
+                $"{window.GetType().Name}: no duplicate text icon in {button.Content}");
+        }
+        foreach (var control in window.GetVisualDescendants().OfType<Control>().Where(c =>
+            c is TextEditor or TextBox or ComboBox || c is Button b && b.Classes.Contains("action")))
+        {
+            if (!control.IsVisible || control.GetVisualAncestors().OfType<Control>().Any(p => !p.IsVisible))
+                continue;
+            // Scrollable content may legitimately extend beyond the viewport.
+            if (control.GetVisualAncestors().OfType<ScrollViewer>().Any())
+                continue;
+            var origin = control.TranslatePoint(default, window);
+            if (origin is not { } p)
+                continue;
+            if (p.X < -1 || p.Y < -1 || p.X + control.Bounds.Width > window.Bounds.Width + 1 ||
+                p.Y + control.Bounds.Height > window.Bounds.Height + 1 || control.Bounds.Width < 1 || control.Bounds.Height < 1)
+                layoutProblems.Add($"{window.GetType().Name}: {control.GetType().Name} {(control as Button)?.Content} at {p}, {control.Bounds.Size}, window {window.Bounds.Size}");
+        }
+        await SaveScreenshot(window, name + "-minimum");
+        window.Width = width;
+        window.Height = height;
+        await Task.Delay(100);
+    }
+    private static async Task ClickEditorAsync(TextEditor editor)
+    {
+        await Task.Delay(100);
+        var view = editor.TextArea.TextView;
+        var root = (Window)TopLevel.GetTopLevel(editor)!;
+        var point = view.TranslatePoint(new Point(25, 10), root)!.Value;
+        var pointer = new Avalonia.Input.Pointer(1, Avalonia.Input.PointerType.Mouse, true);
+        view.RaiseEvent(new Avalonia.Input.PointerPressedEventArgs(view, pointer, root, point, 0,
+            new Avalonia.Input.PointerPointProperties(Avalonia.Input.RawInputModifiers.LeftMouseButton,
+                Avalonia.Input.PointerUpdateKind.LeftButtonPressed), Avalonia.Input.KeyModifiers.None));
+        view.RaiseEvent(new Avalonia.Input.PointerReleasedEventArgs(view, pointer, root, point, 1,
+            new Avalonia.Input.PointerPointProperties(Avalonia.Input.RawInputModifiers.None,
+                Avalonia.Input.PointerUpdateKind.LeftButtonReleased), Avalonia.Input.KeyModifiers.None, Avalonia.Input.MouseButton.Left));
+        await Task.Delay(100);
+        Check(editor.IsKeyboardFocusWithin, "mouse event focuses the submessage input without crashing");
+    }
     private static T Field<T>(object owner, string name) => (T)owner.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(owner)!;
     private static IEnumerable<T> Controls<T>(Control owner) => owner.GetLogicalDescendants().OfType<T>();
     private static void Check(bool condition, string message)
@@ -62,6 +116,11 @@ internal static class Checks
     }
     private static async Task Capture(Window window, string name)
     {
+        await SaveScreenshot(window, name);
+        await AuditCompactLayout(window, name);
+    }
+    private static async Task SaveScreenshot(Window window, string name)
+    {
         await Task.Delay(150);
         string output = Environment.GetEnvironmentVariable("PARSER_SCREENSHOTS") ?? Path.Combine(AppContext.BaseDirectory, "screenshots");
         Directory.CreateDirectory(output);
@@ -76,7 +135,7 @@ internal static class Checks
         Check(painter.Spans.Count == 3, "entire match and tokens have independent highlight spans");
         main.Pattern.CaretOffset = main.Pattern.Text.IndexOf("\\d", StringComparison.Ordinal);
         Check(painter.Spans.Any(s => s.Selected && s.Index == 7 && s.Length == 3), "regex caret selects the corresponding token text");
-        Click(main, "Element ▶");
+        Click(main, "Next element");
         Check(painter.Spans.Any(s => s.Selected && s.Index == 0 && s.Length == 1), "regex element stepping highlights a literal outside capture groups");
         Field<TabControl>(main, "tabs").SelectedIndex = 0;
         await Capture(main, "main");
@@ -99,7 +158,7 @@ internal static class Checks
         await main.AnalyzeAsync();
         Check(Field<TextBlock>(main, "status").Text!.StartsWith("PARTIAL") && painter.Spans.Any(s => s.Index == 0 && s.Length == 3), "main debugger highlights a partial prefix while reporting full-match failure");
         await Capture(main, "partial-debug");
-        Click(main, "Element ▶");
+        Click(main, "Next element");
         Check(Field<TextBlock>(main, "status").Text!.StartsWith("PARTIAL") && painter.Spans.Any(s => s.Selected && s.Length == 1), "partial element stepping remains explicitly labeled");
         main.Message.Text = originalMessage;
         Field<TabControl>(main, "tabs").SelectedIndex = 0;
@@ -155,6 +214,7 @@ internal static class Checks
         search.Text = "not-found-123";
         await Until(() => Controls<ListBox>(help).Single().ItemCount == 0);
         Check(Controls<TextEditor>(help).Single().Text.StartsWith("No topics", StringComparison.Ordinal), "empty help search explains the result");
+        await Capture(help, "help");
         help.Close();
         await helpTask;
 
@@ -238,6 +298,9 @@ internal static class Checks
         Check(new ParserEvaluator(proposed).Evaluate("CONNECT host=other dport=80").Success, "offline suggestion exports a working parser with submessages");
         var advanced = new AdvancedDialog(MainWindow.Example);
         var advancedTask = advanced.ShowDialog<string?>(main);
+        await Capture(advanced, "advanced");
+        Controls<TabControl>(advanced).Single().SelectedIndex = 1;
+        await Capture(advanced, "processors");
         Click(advanced, "Apply to configuration");
         Check(new PropertiesDocument((await advancedTask)!).Get("severity.map.high.if.deviceSeverity") == "400..599", "severity editor round trips rules");
 
@@ -251,6 +314,8 @@ internal static class Checks
             Field<ComboBox>(sub, "idToken").Items.Cast<string>().Contains("MessageID"), "token dropdowns list declared main tokens");
         Check(Field<TextEditor>(sub, "result").Text.Contains("submessage[0].pattern[0]", StringComparison.Ordinal), "submessage test reports selected route");
         Check(Field<TextEditor>(sub, "idPreview").Text == "LOGIN", "submessage ID preview shows the extracted routing value");
+        await ClickEditorAsync(Field<TextEditor>(sub, "sample"));
+        await ClickEditorAsync(Field<TextEditor>(sub, "idPreview"));
         var fields = Field<Dictionary<string, TextEditor>>(sub, "fields");
         Check(Field<CheckBox>(sub, "automatic").IsChecked == true, "submessage live preview is enabled by default");
         fields["regex"].Text += "(?:)";
@@ -288,7 +353,7 @@ internal static class Checks
         await sub.TestAsync();
         fields["regex"].CaretOffset = fields["regex"].Text.IndexOf('(') + 1;
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected), "submessage group navigation highlights the body token");
-        Click(sub, "Element ▶");
+        Click(sub, "Next element");
         int bodyStart = logs[0].Text.IndexOf("user=", StringComparison.Ordinal);
         Check(Field<TextEditor>(sub, "sample").Text == logs[0].Text[bodyStart..] && Field<TextEditor>(sub, "sample").IsReadOnly,
             "submessage input displays only the configured token and cannot diverge from the original log");
@@ -298,7 +363,10 @@ internal static class Checks
         await Capture(sub, "submessages");
         sub.Width = sub.MinWidth;
         sub.Height = sub.MinHeight;
+        await ClickEditorAsync(Field<TextEditor>(sub, "sample"));
+        await ClickEditorAsync(Field<TextEditor>(sub, "idPreview"));
         await Capture(sub, "submessages-compact");
+        Check(Field<ListBox>(sub, "elements").Bounds.Height >= 60, "compact submessage window retains a usable results area");
         Check(fields["regex"].Bounds.Height >= 60 && Field<TextEditor>(sub, "sample").Bounds.Height >= 60, "submessage message and regex stay visible at minimum size");
         Field<TabControl>(sub, "previewTabs").SelectedIndex = 2;
         await Capture(sub, "submessages-fields");
@@ -333,7 +401,7 @@ internal static class Checks
             "failed main extraction clears body text and highlights instead of using the full event");
         Field<TextEditor>(sub, "originalLog").Text = logs[0].Text;
         await sub.TestAsync();
-        Click(sub, "+ Pattern");
+        Click(sub, "Add pattern");
         fields["regex"].Text = validPattern;
         await sub.TestAsync();
         Check(Field<TextBlock>(sub, "previewStatus").Text!.Contains("NOT used") && Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0, "unused submessage alternative can be debugged without claiming it won routing");
@@ -347,6 +415,13 @@ internal static class Checks
         var urlSub = new SubmessagesDialog(urlDoc.Source, "id=LOGIN body=https://example.com/path?q=1", 0, 0);
         var urlTask = urlSub.ShowDialog<string?>(main);
         await Until(() => Field<CaptureHighlighter>(urlSub, "painter").Spans.Count == 4);
+        string urlLog = Field<TextEditor>(urlSub, "originalLog").Text;
+        Field<TextEditor>(urlSub, "originalLog").Text = urlLog.Replace("LOGIN", new string('X', 180));
+        await urlSub.TestAsync();
+        await ClickEditorAsync(Field<TextEditor>(urlSub, "idPreview"));
+        Check(Field<TextEditor>(urlSub, "idPreview").Text.Length == 180, "clicking a wrapped ID preview preserves its value");
+        Field<TextEditor>(urlSub, "originalLog").Text = urlLog;
+        await urlSub.TestAsync();
         var urlFields = Field<Dictionary<string, TextEditor>>(urlSub, "fields");
         urlFields["regex"].CaretOffset = 2;
         var urlEditor = Field<TextEditor>(urlSub, "sample");
@@ -408,6 +483,12 @@ internal static class Checks
         Field<ListBox>(batch, "captures").SelectedIndex = -1;
         Check(!Field<TextBlock>(batch, "summary").Text!.StartsWith("Testing", StringComparison.Ordinal), "queued progress cannot overwrite completed batch totals");
         await Capture(batch, "batch");
+        Click(batch, "Edit parser…");
+        var desktop = (IClassicDesktopStyleApplicationLifetime)Application.Current!.ApplicationLifetime!;
+        await Until(() => desktop.Windows.Any(w => w.Title == "Edit parser and retest"));
+        var parserEditor = desktop.Windows.Single(w => w.Title == "Edit parser and retest");
+        await Capture(parserEditor, "batch-parser-editor");
+        Click(parserEditor, "Cancel");
         var noRoute = new PropertiesDocument(source);
         noRoute.Set("submessage.messageid.token", "Body");
         noRoute.Set("submessage[2].messageid", "STATUS");
@@ -485,7 +566,7 @@ internal static class Checks
         finally { if (File.Exists(libraryPath)) File.Delete(libraryPath); }
         string beforeGroup = main.Pattern.Text;
         main.Pattern.Select(0, 6);
-        Click(main, "Group (…)");
+        Click(main, "Group selection");
         Check(main.Pattern.Text == "(" + beforeGroup[..6] + ")" + beforeGroup[6..], "main regex group button wraps only the selected text");
         main.Pattern.Document.UndoStack.Undo();
         Check(main.Pattern.Text == beforeGroup, "group insertion is one undo step");
@@ -511,5 +592,16 @@ internal static class Checks
         await pipelineTask;
         // The session is untouched by modal draft tests, so closing cannot prompt for unsaved work.
         Check(!main.IsDirty, "modal previews do not silently modify the main parser");
+        var formatDialog = new FormatDialog("TimeStamp", "yyyy-MM-dd HH:mm:ss");
+        var formatTask = formatDialog.ShowDialog<string?>(main);
+        await Capture(formatDialog, "format");
+        formatDialog.Close();
+        await formatTask;
+        var promptTask = Ui.Ask(main, "Layout check", "Check confirmation actions.", "Save", "Discard", "Cancel");
+        var prompt = ((IClassicDesktopStyleApplicationLifetime)Application.Current!.ApplicationLifetime!).Windows.Single(w => w.Title == "Layout check");
+        await Capture(prompt, "confirmation");
+        Click(prompt, "Cancel");
+        await promptTask;
+        Check(layoutProblems.Count == 0, "compact-window layout: " + string.Join("\n", layoutProblems));
     }
 }

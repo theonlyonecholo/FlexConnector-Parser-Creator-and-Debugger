@@ -51,7 +51,8 @@ internal static class Ui
     public static TextBlock Label(string text, double size = 13) => new() { Text = text, FontSize = size, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
     public static Button Button(string text, Action action, string hint = "")
     {
-        var button = new Button { Content = text, MinHeight = 34, VerticalAlignment = VerticalAlignment.Center };
+        var button = new Button { Content = text, MinHeight = 34, MaxWidth = 320, VerticalAlignment = VerticalAlignment.Center };
+        button.Classes.Add("action");
         Icons.Decorate(button, text);
         button.Click += (_, _) => action();
         Tip(button, hint);
@@ -68,12 +69,20 @@ internal static class Ui
     public static WrapPanel Bar(params Control[] controls)
     {
         var panel = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6) };
-        foreach (var control in controls)
+        // Apply the same spacing to controls inserted later (format symbols,
+        // event-preview actions), not only those supplied at construction.
+        panel.Children.CollectionChanged += (_, e) =>
         {
-            control.VerticalAlignment = VerticalAlignment.Center;
-            control.Margin = new Thickness(0, 3, 8, 3);
+            if (e.NewItems is null)
+                return;
+            foreach (Control control in e.NewItems)
+            {
+                control.VerticalAlignment = VerticalAlignment.Center;
+                control.Margin = new Thickness(0, 3, 8, 3);
+            }
+        };
+        foreach (var control in controls)
             panel.Children.Add(control);
-        }
         return panel;
     }
     public static StackPanel Stack(params Control[] controls)
@@ -145,7 +154,7 @@ internal static class Ui
         editor.Text = text;
         editor.Document.UndoStack.ClearAll();
     }
-    public static Button Help(Window owner, string topic) => AsyncButton("Help · F1", () => new HelpDialog(topic).ShowDialog(owner), "Search offline help for this editor.");
+    public static Button Help(Window owner, string topic) => AsyncButton("Help (F1)", () => new HelpDialog(topic).ShowDialog(owner), "Search offline help for this editor.");
     public static void HelpKey(Window window, string topic)
     {
         window.KeyDown += async (_, e) =>

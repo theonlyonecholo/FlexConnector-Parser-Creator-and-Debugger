@@ -24,7 +24,7 @@ Changing the mapping expression refreshes the snippet. String constants are disp
 
 ## Regex element navigation
 
-Press F5, open **Regex elements**, then use **Element ▶ / ◀ Element**, select a list row or click inside the regex while that tab is selected. The application selects the corresponding regex source and highlights matching spans in Message. Elements include individual literals, escapes, character classes, quantified atoms, groups and assertions.
+Press F5, open **Regex elements**, then use **Next element / Previous element**, select a list row or click inside the regex while that tab is selected. The application selects the corresponding regex source and highlights matching spans in Message. Elements include individual literals, escapes, character classes, quantified atoms, groups and assertions.
 
 Repeated atoms may highlight multiple spans. Assertions and empty matches have zero-length positions and therefore no colored characters. Skipped alternatives have no capture. Source-order navigation describes the final first match or a partial prefix preview; it is not execution-order stepping or internal backtracking.
 
@@ -52,9 +52,9 @@ All processing uses the existing local .NET engine. Validate the final configura
 
 The cross-platform Avalonia window uses the same implementation on Windows, Linux and macOS. Windows and Ubuntu/WSLg are runtime-tested; macOS is not tested in this environment.
 
-The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the extracted value of submessage.token and selected regex visible. The read-only token view shows the full raw value; the Original log tab holds the editable full event. Changing the original log or body-token dropdown automatically re-extracts it; F5 also refreshes the preview. If extraction fails, the view clears and reports the missing token. Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
+The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the extracted value of submessage.token and selected regex visible. The read-only token view shows the full raw value; the Original log tab holds the editable full event. Changing the original log or body-token dropdown automatically re-extracts it; F5 also refreshes the preview. If extraction fails, the view clears and reports the missing token. Captures, Regex elements, Fields / types, Mappings and Diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
 
-Automatic preview is enabled by default, as in the main window, and refreshes after a 350 ms typing pause or pattern selection. Turn it off for manual testing with F5 or Test log with these changes. Edits and node switches cancel stale work and clear previous highlights while retaining the extracted body; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
+Automatic preview is enabled by default, as in the main window, and refreshes after a 350 ms typing pause or pattern selection. Turn it off for manual testing with F5 or Test preview (F5). Edits and node switches cancel stale work and clear previous highlights while retaining the extracted body; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
 
 Application limits are 1,000 submessage definitions (indices 0–999), 1,000 patterns per definition (indices 0–999), and 5,000 patterns in total. These are local preview limits, not a claim about the ArcSight engine's maximum.
 

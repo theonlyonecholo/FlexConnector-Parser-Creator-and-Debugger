@@ -24,7 +24,7 @@ replace the file via a temporary file. Limits: 200 entries, 16,000 characters pe
 regex, 4 MB per library; matching has a 250 ms timeout.
 
 Replacement uses a noncapturing `(?:...)` wrapper to preserve alternation scope.
-**Group (…)** wraps the selected expression in capturing parentheses. Both edits
+**Group selection** wraps the selected expression in capturing parentheses. Both edits
 are single undo steps. Capturing groups inside custom presets and groups created
 with the button change capture numbering: review token declarations and
 submessage mappings. Preset management saves immediately; editor undo does not

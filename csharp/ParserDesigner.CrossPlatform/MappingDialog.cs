@@ -42,7 +42,7 @@ internal sealed class MappingDialog : Window
             target.Text = text.Length > 120 ? text[..120] + "…" : text;
             Ui.Tip(target, text[..Math.Min(2000, text.Length)]);
         }
-        table.Children.Add(Ui.Columns("*,2*,2*,80", Ui.Label("Event field"), Ui.Label("Token / expression"), Ui.Label("Message snippet"), Ui.Label("")));
+        table.Children.Add(Ui.Columns("*,2*,2*,110", Ui.Label("Event field"), Ui.Label("Token / expression"), Ui.Label("Message snippet"), Ui.Label("")));
         var diagnostics = Ui.Label("");
         var field = Ui.Input("", "Target event.fieldName. Choose from the catalog or enter a custom field.");
         fields.ItemsSource = catalog.Values.OrderBy(f => f.Field, StringComparer.Ordinal).ToArray();
@@ -85,7 +85,7 @@ internal sealed class MappingDialog : Window
             MappingRow? row = null;
             var snippet = Ui.Label("");
             UpdateSnippet(snippet, expression);
-            var container = Ui.Columns("*,2*,2*,80", f, e, snippet, Ui.Button("Remove", () => { if (row is null) return; rows.Remove(row); table.Children.Remove(row.Container); Diagnose(); }));
+            var container = Ui.Columns("*,2*,2*,110", f, e, snippet, Ui.Button("Remove", () => { if (row is null) return; rows.Remove(row); table.Children.Remove(row.Container); Diagnose(); }));
             row = new(f, e, snippet, container);
             rows.Add(row);
             table.Children.Add(container);

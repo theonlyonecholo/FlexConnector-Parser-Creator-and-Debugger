@@ -121,7 +121,7 @@ internal sealed class SubmessagesDialog : Window
                 "Replace the comma-separated field at the caret, or append at the end. Field order corresponds to mappings or capture groups.")));
         fields["regex"].TextArea.Caret.PositionChanged += (_, _) => HighlightGroup();
         var tools = Ui.Bar(
-            Ui.Button("+ Submessage", () =>
+            Ui.Button("Add submessage", () =>
             {
                 Store();
                 ClearSearch();
@@ -130,7 +130,7 @@ internal sealed class SubmessagesDialog : Window
                 model.Messages.Add(message);
                 Refresh(model.Messages.Count - 1, 0);
             }, "Add a new message ID with its first pattern."),
-            Ui.Button("+ Pattern", () =>
+            Ui.Button("Add pattern", () =>
             {
                 if (selected is null)
                     return;
@@ -141,32 +141,37 @@ internal sealed class SubmessagesDialog : Window
                 Refresh(selected.Message, patterns.Count - 1);
             }, "Add an alternative body regex to the selected definition."),
             Ui.Button("Remove", Remove, "Remove the selected pattern or entire definition."),
-            Ui.Button("↑ Earlier", () => Move(-1), "The first matching pattern wins."),
-            Ui.Button("↓ Later", () => Move(1), "Move the selected definition or pattern later in the order."));
+            Ui.Button("Earlier", () => Move(-1), "Move the selected definition or pattern earlier. The first matching pattern wins."),
+            Ui.Button("Later", () => Move(1), "Move the selected definition or pattern later in the order."));
         previewTabs = new TabControl
         {
             ItemsSource = new[]
             {
                 new TabItem { Header = Ui.Label("Captures"), Content = captures },
-                new TabItem { Header = Ui.Label("Regex elements"), Content = elements },
+                new TabItem { Header = Ui.Label("Elements"), Content = elements },
                 new TabItem { Header = Ui.Label("Fields / types"), Content = new ScrollViewer { Content = mappings } },
-                new TabItem { Header = Ui.Label("Advanced mappings"), Content = new ScrollViewer { Content = advanced } },
-                new TabItem { Header = Ui.Label("Route / diagnostics"), Content = result },
+                new TabItem { Header = Ui.Label("Mappings"), Content = new ScrollViewer { Content = advanced } },
+                new TabItem { Header = Ui.Label("Diagnostics"), Content = result },
                 new TabItem { Header = Ui.Label("Original log"), Content = originalLog }
             }
         };
-        var controls = Ui.Bar(Ui.AsyncButton("Test log with these changes", RunPreviewAsync, "F5: test routing and the selected pattern independently."),
+        var controls = Ui.Bar(Ui.AsyncButton("Test preview (F5)", RunPreviewAsync, "F5: test routing and the selected pattern independently."),
             Ui.AsyncButton("Regex presets…", () => Ui.Guard(this, () => RegexEditorActions.PresetsAsync(this, fields["regex"]))),
-            Ui.AsyncButton("Group (…)", () => Ui.Guard(this, () => { RegexEditorActions.Group(fields["regex"]); return Task.CompletedTask; }), "Wrap the selection in a capturing group. Review field mappings after group numbers change."),
-            Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)), automatic);
-        idPreview.MinHeight = 36;
-        var right = Ui.Rows("Auto,Auto,36,Auto,85,Auto,90,Auto,Auto,*",
+            Ui.AsyncButton("Group selection", () => Ui.Guard(this, () => { RegexEditorActions.Group(fields["regex"]); return Task.CompletedTask; }), "Wrap the selection in a capturing group. Review field mappings after group numbers change."),
+            Ui.Button("Previous element", () => MoveElement(-1)), Ui.Button("Next element", () => MoveElement(1)), automatic);
+        // Keep the editor's normal minimum height: a viewport shorter than the caret
+        // scroll margin can recurse between selection and scrolling on Linux.
+        selectionTitle.MaxHeight = 42;
+        selectionTitle.TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis;
+        var right = Ui.Rows("Auto,Auto,60,Auto,65,Auto,75,Auto,Auto,*",
             selectionTitle, idStatus, idPreview, bodyStatus, sample,
             Ui.Label("SELECTED REGEX · click a group or use Regex elements; long expressions wrap"), fields["regex"],
-            controls, Ui.Stack(routeStatus, previewStatus), previewTabs);
+            controls, new ScrollViewer { MaxHeight = 65, Content = Ui.Stack(routeStatus, previewStatus) }, previewTabs);
+        var navigationHelp = Ui.Label("Select a pattern to edit.\nPatterns are tried in order.");
+        Ui.Tip(navigationHelp, "Default = no messageid property; tries its patterns for unknown IDs. App limits: 1,000 definitions; 1,000 patterns per definition; 5,000 patterns total.");
         var navigation = Ui.Rows("Auto,Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
             tools, Ui.Stack(Ui.Label("Message ID"), messageId, fallback), search,
-            Ui.Label("Select a pattern below to edit it. The first matching pattern wins.\nDefault = no messageid property; tries its patterns for unknown IDs.\nApp limits: 1,000 definitions; 1,000 patterns per definition; 5,000 patterns total."), nodes);
+            navigationHelp, nodes);
         Content = new Border
         {
             Padding = new Thickness(16),

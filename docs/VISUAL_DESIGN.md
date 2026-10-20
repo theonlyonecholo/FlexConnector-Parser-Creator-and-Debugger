@@ -16,6 +16,27 @@ The shared button helper covers the main window, submessages, mappings, testing,
 catalogs and help. Buttons still wrap at narrower widths.
 No icon fonts, external asset services or network requests are used.
 
+## Layout and action audit in 2.7.3
+
+All application action buttons now receive vector icons, including previous/next,
+new/edit, format insertion and confirmation choices. Native controls such as
+checkboxes, dropdowns and scrollbars keep their standard indicators.
+Labels no longer repeat arrows or leading plus signs supplied by the icons.
+Keyboard shortcuts, dialog ellipses and actual format/regex syntax remain.
+
+Button captions can wrap; dynamically inserted actions use the same margins as
+existing buttons. Mapping removal actions have sufficient column width.
+Submessage tabs use shorter labels, the sidebar keeps a brief instruction with
+full details in its tooltip/help, and diagnostic text has a scrollable height
+limit. This leaves room for results in compact windows. The ID preview retains
+the minimum height required by the 2.7.2 mouse-selection crash fix.
+
+The native UI regression suite captures normal and minimum-size windows, checks
+non-scrollable input/button bounds, verifies action-icon coverage and checks that
+compact submessage results retain useful height. Scrollable content may extend
+within its own scrolling viewport. Checks run on Windows and Ubuntu/WSLg;
+macOS runtime behavior and other display scales have not been verified.
+
 Assets: `csharp/ParserDesigner.CrossPlatform/Assets/app-icon.svg`, `.png`, `.ico`.
 Regeneration: `python scripts/generate-app-icon.py` with Pillow installed.
 Runtime builds use the committed assets and do not require Python or Pillow.

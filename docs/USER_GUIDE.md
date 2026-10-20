@@ -70,7 +70,7 @@ The configuration is a text file of key=value properties. Keys are case-sensitiv
 Two representations of a regex
 In the Regex field: status=(\d+) message=(.*)
 In .properties: regex=status=(\\d+) message=(.*)
-Properties has its own escaping, so backslashes are doubled. Regex → Configuration escapes automatically; Configuration → Regex decodes the value.
+Properties has its own escaping, so backslashes are doubled. Write regex to configuration escapes automatically; Load regex from configuration decodes the value.
 
 Minimal configuration example
 regex=status=(\\d+) message=(.*)
@@ -84,7 +84,7 @@ event.message=Message
 severity.map.high.if.deviceSeverity=400..599
 
 Open parser loads a file and its main regex. Save writes the current configuration; Save as chooses another file. If the Regex field differs, the application offers to write it into the configuration. Applying a dialog does not save to disk.
-Configuration → Regex replaces the working expression with the configured value. Regex → Configuration updates the regex property, not the tokens. After changing groups, check token.count, names and dependent references.
+Load regex from configuration replaces the working expression with the configured value. Write regex to configuration updates the regex property, not the tokens. After changing groups, check token.count, names and dependent references.
 
 Properties files are read as Latin-1 or using their BOM. ASCII export with Unicode escapes preserves international characters. This is separate from the log file encoding setting.
 
@@ -209,9 +209,9 @@ extramappings: additional assignments, e.g. event.name=__stringConstant("Unparse
 extramappings.delimiter: separator for additional assignments (default |).
 
 Tree and order
-+ Submessage adds a definition. + Pattern adds a variant to the selected definition. Remove deletes the selected pattern or entire definition. Earlier/Later changes the order. The first matching pattern wins; put specific variants before broad ones such as (.*). Indices and counts are recalculated on Apply.
+Add submessage adds a definition. Add pattern adds a variant to the selected definition. Remove deletes the selected pattern or entire definition. Earlier/Later changes the order. The first matching pattern wins; put specific variants before broad ones such as (.*). Indices and counts are recalculated on Apply.
 
-Test log with these changes evaluates the draft against the entire selected log. Clicking inside a group highlights its field if this pattern was selected. Repeated groups show the last field value. Apply to configuration returns changes to the editor; then Save. Cancel discards the draft. Switching nodes resets the fields' text histories.
+Test preview (F5) evaluates the draft against the entire selected log. Clicking inside a group highlights its field if this pattern was selected. Repeated groups show the last field value. Apply to configuration returns changes to the editor; then Save. Cancel discards the draft. Switching nodes resets the fields' text histories.
 Local testing performs routing and regex matching; fields are labels. It does not execute types, formats, mappings or extramappings.
 Reference: guide, pp. 136–146.
 ```

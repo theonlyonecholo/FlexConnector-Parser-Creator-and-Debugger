@@ -20,7 +20,7 @@ The preset must match the entire selection as literal text, not as another regex
 New creates a preset. Edit Name, Regex and Description, then Save preset. Delete removes the selected saved preset. Save edits before applying them; closing or choosing another preset discards unsaved form edits.
 The library is stored locally in regex-presets.json under the user's local application-data directory / ArcSightParserDesigner. The exact path is shown in the dialog. It is shared by both editors and persists across restarts and application upgrades. No network service is used.
 Built-ins include IPv4, IPv6, ASCII FQDN labels, colon-separated MAC, unsigned integer and UUID text shape. Read each description for limitations. All can be edited or removed.
-Replacement adds a noncapturing wrapper (?:...) so alternatives stay scoped. Groups inside a custom preset still count. Group (…) wraps the selected regex text in a capturing group; it does not escape it. Review token counts and submessage field order after adding captures. Both edits can be undone with Ctrl+Z.
+Replacement adds a noncapturing wrapper (?:...) so alternatives stay scoped. Groups inside a custom preset still count. Group selection wraps the selected regex text in a capturing group; it does not escape it. Review token counts and submessage field order after adding captures. Both edits can be undone with Ctrl+Z.
 This is a .NET preview; validate the parser in the target ArcSight Java runtime before deployment.
 """),
         new("assistance", "Cross-platform: parser suggestions and regex elements", """
@@ -34,7 +34,7 @@ Press F5 and open Regex elements. Use the Element arrows, select a row or click 
 
 Element stepping follows source order, not internal backtracking. When the complete regex fails, PARTIAL may highlight a matching prefix in orange. Use Regex elements or the Element arrows to inspect it. This is a prefix hypothesis, not the engine's first failure; actual parser matching and routing remain unsuccessful. The capture table still requires a complete match. Partial probes keep quantifiers intact and do not enter unfinished repeated groups or lookarounds. The search is bounded to two seconds. Unsupported constructs (backreferences, named/balancing groups, conditionals, inline flags/comments and nested classes) are explained in Diagnostics; capture debug remains available.
 
-In the cross-platform Submessages workbench, The extracted submessage.token value and Regex remain visible above tabs for Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics. Press F5 or enable Automatic preview. Capture rows and regex groups highlight positions relative to the body token; Element arrows also select literals and other atoms. The selected pattern is tested independently against the body, even if another alternative wins routing. Actual route remains visible separately; a NOT used notice prevents confusing this independent preview with connector routing. Editing cancels stale previews. The Original log tab holds the editable full event. Body and ID token dropdowns list declared main tokens. Changing the body token or original log automatically re-extracts the body. Pattern edits keep the body visible even if a submessage regex is invalid. Press F5 to refresh debugging; the body label explains extraction failures. Trim submessage affects matching while the view preserves the raw token. These controls are shared by Windows, Linux and macOS builds.
+In the cross-platform Submessages workbench, The extracted submessage.token value and Regex remain visible above tabs for Captures, Regex elements, Fields / types, Mappings and Diagnostics. Press F5 or enable Automatic preview. Capture rows and regex groups highlight positions relative to the body token; Element arrows also select literals and other atoms. The selected pattern is tested independently against the body, even if another alternative wins routing. Actual route remains visible separately; a NOT used notice prevents confusing this independent preview with connector routing. Editing cancels stale previews. The Original log tab holds the editable full event. Body and ID token dropdowns list declared main tokens. Changing the body token or original log automatically re-extracts the body. Pattern edits keep the body visible even if a submessage regex is invalid. Press F5 to refresh debugging; the body label explains extraction failures. Trim submessage affects matching while the view preserves the raw token. These controls are shared by Windows, Linux and macOS builds.
 """),
         new("start", "Getting started: from log to event", """
 A parser describes how to turn original log text into a structured ArcSight event. The regex recognizes text, tokens name captured values, and mappings assign them to event.* fields.
@@ -90,7 +90,7 @@ The configuration is a text file of key=value properties. Keys are case-sensitiv
 Two representations of a regex
 In the Regex field: status=(\d+) message=(.*)
 In .properties: regex=status=(\\d+) message=(.*)
-Properties has its own escaping, so backslashes are doubled. Regex → Configuration escapes automatically; Configuration → Regex decodes the value.
+Properties has its own escaping, so backslashes are doubled. Write regex to configuration escapes automatically; Load regex from configuration decodes the value.
 
 Minimal configuration example
 regex=status=(\\d+) message=(.*)
@@ -104,7 +104,7 @@ event.message=Message
 severity.map.high.if.deviceSeverity=400..599
 
 Open parser loads a file and its main regex. Save writes the current configuration; Save as chooses another file. If the Regex field differs, the application offers to write it into the configuration. Applying a dialog does not save to disk.
-Configuration → Regex replaces the working expression with the configured value. Regex → Configuration updates the regex property, not the tokens. After changing groups, check token.count, names and dependent references.
+Load regex from configuration replaces the working expression with the configured value. Write regex to configuration updates the regex property, not the tokens. After changing groups, check token.count, names and dependent references.
 
 Properties files are read as Latin-1 or using their BOM. ASCII export with Unicode escapes preserves international characters. This is separate from the log file encoding setting.
 
@@ -222,9 +222,9 @@ extramappings: additional assignments, e.g. event.name=__stringConstant("Unparse
 extramappings.delimiter: separator for additional assignments (default |).
 
 Tree and order
-+ Submessage adds a definition. + Pattern adds a variant to the selected definition. Remove deletes the selected pattern or entire definition. Earlier/Later changes the order. The first matching pattern wins; put specific variants before broad ones such as (.*). Indices and counts are recalculated on Apply.
+Add submessage adds a definition. Add pattern adds a variant to the selected definition. Remove deletes the selected pattern or entire definition. Earlier/Later changes the order. The first matching pattern wins; put specific variants before broad ones such as (.*). Indices and counts are recalculated on Apply.
 
-Test log with these changes evaluates the draft against the entire selected log. Clicking inside a group highlights its field if this pattern was selected. Repeated groups show the last field value. Apply to configuration returns changes to the editor; then Save. Cancel discards the draft. Switching nodes resets the fields' text histories.
+Test preview (F5) evaluates the draft against the entire selected log. Clicking inside a group highlights its field if this pattern was selected. Repeated groups show the last field value. Apply to configuration returns changes to the editor; then Save. Cancel discards the draft. Switching nodes resets the fields' text histories.
 Local testing performs routing and regex matching; fields are labels. It does not execute types, formats, mappings or extramappings.
 Reference: guide, pp. 136–146.
 """),

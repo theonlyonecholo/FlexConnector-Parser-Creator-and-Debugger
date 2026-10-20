@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.7.3 — 2026-10-20
+
+- Complete action-button icons for navigation, creation, editing, format insertion and confirmation dialogs.
+- Replace redundant text arrows/pluses with descriptive labels; retain shortcuts and meaningful format syntax.
+- Allow button captions to wrap and apply consistent spacing to dynamically inserted actions.
+- Give mapping Remove buttons sufficient width and simplify the compact submessage sidebar and tabs.
+- Preserve a usable submessage results area at minimum size and bound long route diagnostics.
+- Extend Windows/Linux UI checks to icon coverage and compact dialog bounds; retain the 2.7.2 mouse-click crash regressions.
+
+## 2.7.2 — 2026-10-20
+
+- Fix a reproducible Linux/WSLg stack overflow when clicking the submessage Message ID input preview.
+- Restore the editor's normal minimum viewport height to prevent recursive caret scrolling during mouse selection.
+- Add routed mouse press/release regressions for body and ID previews, compact windows and wrapped IDs.
+
 ## 2.7.1 — 2026-10-20
 
 - Add an original application icon to native windows and the Windows executable.

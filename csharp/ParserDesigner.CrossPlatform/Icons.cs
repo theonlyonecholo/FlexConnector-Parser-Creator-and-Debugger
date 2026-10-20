@@ -31,11 +31,37 @@ internal static class Icons
         ["group"] = "M8,3 Q2,12 8,21 M16,3 Q22,12 16,21",
         ["spark"] = "M12,2 L15,9 L22,12 L15,15 L12,22 L9,15 L2,12 L9,9 Z",
         ["undo"] = "M8,4 L3,9 L8,14 M3,9 L14,9 Q21,9 21,16 L21,20",
-        ["arrow"] = "M3,12 L21,12 M15,6 L21,12 L15,18"
+        ["arrow"] = "M3,12 L21,12 M15,6 L21,12 L15,18",
+        ["previous"] = "M21,12 L3,12 M9,6 L3,12 L9,18",
+        ["up"] = "M12,21 L12,3 M6,9 L12,3 L18,9",
+        ["down"] = "M12,3 L12,21 M6,15 L12,21 L18,15",
+        ["edit"] = "M4,16 L16,4 L20,8 L8,20 L3,21 Z M13,7 L17,11"
     };
 
-    private static string? Key(string label)
+    private static string Key(string label)
     {
+        if (label.StartsWith("Previous", StringComparison.Ordinal))
+            return "previous";
+        if (label.StartsWith("Next", StringComparison.Ordinal))
+            return "arrow";
+        if (label == "Earlier")
+            return "up";
+        if (label == "Later")
+            return "down";
+        if (label.StartsWith("Write", StringComparison.Ordinal))
+            return "save";
+        if (label.StartsWith("Edit", StringComparison.Ordinal) || label.StartsWith("Build", StringComparison.Ordinal))
+            return "edit";
+        if (label.StartsWith("New", StringComparison.Ordinal))
+            return "add";
+        if (label.StartsWith("Clear", StringComparison.Ordinal) || label == "Discard")
+            return "remove";
+        if (label.StartsWith("Check", StringComparison.Ordinal))
+            return "check";
+        if (label == "Replace")
+            return "arrow";
+        if (label.Contains(" · ", StringComparison.Ordinal))
+            return "add"; // Format-symbol insertion.
         if (label.StartsWith("Open", StringComparison.Ordinal) || label.StartsWith("Choose folder", StringComparison.Ordinal))
             return "open";
         if (label.StartsWith("Save", StringComparison.Ordinal))
@@ -76,20 +102,21 @@ internal static class Icons
             return "undo";
         if (label.Contains(" → ", StringComparison.Ordinal))
             return "arrow";
-        return null;
+        return "arrow";
     }
 
     public static void Decorate(Button button, string label)
     {
-        string? key = Key(label);
-        if (key is null)
-            return;
+        string key = Key(label);
         Avalonia.Automation.AutomationProperties.SetName(button, label);
         button.ContentTemplate = new FuncDataTemplate<string>((text, _) =>
-            new StackPanel
+        {
+            var caption = new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+            Grid.SetColumn(caption, 1);
+            return new Grid
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 7,
+                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                ColumnSpacing = 7,
                 Children =
                 {
                     new Path
@@ -100,8 +127,9 @@ internal static class Icons
                         StrokeJoin = PenLineJoin.Round, VerticalAlignment = VerticalAlignment.Center,
                         IsHitTestVisible = false
                     },
-                    new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center }
+                    caption
                 }
-            });
+            };
+        });
     }
 }

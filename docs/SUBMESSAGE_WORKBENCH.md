@@ -12,6 +12,9 @@ The main regex extracts two independent values:
 
 Edit the full event in **Original log**. Automatic preview refreshes extraction,
 routing and highlights after a typing pause; F5 refreshes manually.
+Both previews allow text selection and copying. Version 2.7.2 restores enough
+height for the ID editor's caret scrolling, fixing a click-triggered stack
+overflow reproduced on Linux/WSLg.
 The selected definition's **Message ID** is its configured routing value, not
 the extracted value above. **Actual route** identifies the definition/pattern
 chosen by routing. An independent preview can match without winning routing.

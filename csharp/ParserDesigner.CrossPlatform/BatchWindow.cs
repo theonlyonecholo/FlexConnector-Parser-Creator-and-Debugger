@@ -44,7 +44,7 @@ internal sealed class BatchWindow : Window
         Ui.Tip(list, "Original line number, result, message ID and selected route. Select a log for capture details.");
         var tools = Ui.Bar(Ui.AsyncButton("Open logs…", () => Ui.Guard(this, OpenAsync)), encoding,
             Ui.AsyncButton("Test all", () => Ui.Guard(this, RunAsync)), Ui.Button("Stop", () => runCancellation?.Cancel()),
-            Ui.Button("◀ Log", () => Move(-1)), Ui.Button("Log ▶", () => Move(1)), filter,
+            Ui.Button("Previous log", () => Move(-1)), Ui.Button("Next log", () => Move(1)), filter,
             Ui.AsyncButton("Edit submessage…", () => Ui.Guard(this, EditSubmessageAsync)),
             Ui.AsyncButton("Edit parser…", () => Ui.Guard(this, EditParserAsync)), Ui.Help(this, "batch"));
         tools.Children.Insert(tools.Children.Count - 1, Ui.AsyncButton("Event preview / tests…", () => Ui.Guard(this,
