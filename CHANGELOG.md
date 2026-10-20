@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0 — 2026-10-20
+
+- Add a shared persistent local regex preset library with create, edit, delete and full-selection validation in the main and submessage editors.
+- Include editable IPv4, IPv6, ASCII FQDN, MAC, integer and UUID presets with documented scope.
+- Add one-step undoable selection replacement and capturing-group wrapping.
+
 ## 2.3.5 — 2026-10-20
 
 - Enable automatic submessage previews by default, including regex edits and pattern switching, and restore caret-to-capture highlighting after asynchronous refresh.

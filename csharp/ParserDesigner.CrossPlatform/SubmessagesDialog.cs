@@ -147,6 +147,8 @@ internal sealed class SubmessagesDialog : Window
             }
         };
         var controls = Ui.Bar(Ui.AsyncButton("Test log with these changes", RunPreviewAsync, "F5: test routing and the selected pattern independently."),
+            Ui.AsyncButton("Regex presets…", () => Ui.Guard(this, () => RegexEditorActions.PresetsAsync(this, fields["regex"]))),
+            Ui.AsyncButton("Group (…)", () => Ui.Guard(this, () => { RegexEditorActions.Group(fields["regex"]); return Task.CompletedTask; }), "Wrap the selection in a capturing group. Review field mappings after group numbers change."),
             Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)), automatic);
         var right = Ui.Rows("Auto,Auto,85,Auto,90,Auto,Auto,*",
             selectionTitle, bodyStatus, sample,

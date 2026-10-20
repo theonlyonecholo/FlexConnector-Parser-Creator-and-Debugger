@@ -331,6 +331,50 @@ internal static class Checks
         batch.Close();
         await batchTask;
 
+        string libraryPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        try
+        {
+            var library = new RegexPresetsDialog(new RegexPresetStore(libraryPath), "host=192.0.2.1", 5, 9);
+            var libraryTask = library.ShowDialog<string?>(main);
+            var presetList = Field<ListBox>(library, "list");
+            presetList.SelectedItem = presetList.Items.Cast<RegexPreset>().Single(p => p.Id == "ipv4");
+            await Capture(library, "regex-presets");
+            Click(library, "Check and replace selection");
+            string replacement = (await libraryTask)!;
+            Check(replacement.Contains("25[0-5]"), "preset dialog validates and returns the matching IPv4 expression");
+            var edit = Ui.Editor("host=192.0.2.1");
+            RegexEditorActions.Replace(edit, 5, 9, replacement);
+            Check(edit.Text == "host=" + replacement, "preset replacement changes only the original selection");
+            edit.Document.UndoStack.Undo();
+            Check(edit.Text == "host=192.0.2.1", "preset replacement is one undo step");
+
+            library = new RegexPresetsDialog(new RegexPresetStore(libraryPath), "not an IP", 0, 9);
+            libraryTask = library.ShowDialog<string?>(main);
+            presetList = Field<ListBox>(library, "list");
+            presetList.SelectedItem = presetList.Items.Cast<RegexPreset>().Single(p => p.Id == "ipv4");
+            Click(library, "Check and replace selection");
+            await Until(() => Field<TextBlock>(library, "status").Text!.StartsWith("Cannot replace"));
+            Check(library.IsVisible, "mismatching preset keeps the dialog open without replacement");
+            Click(library, "New");
+            Field<TextBox>(library, "name").Text = "My phrase";
+            Field<TextEditor>(library, "pattern").Text = "not an IP";
+            Click(library, "Save preset");
+            Check(new RegexPresetStore(libraryPath).Load().Any(p => p.Name == "My phrase"), "preset save persists through a fresh library instance");
+            Field<TextEditor>(library, "pattern").Text = "not .*";
+            Click(library, "Save preset");
+            Check(new RegexPresetStore(libraryPath).Load().Single(p => p.Name == "My phrase").Pattern == "not .*", "preset edits persist");
+            Click(library, "Delete");
+            Check(!new RegexPresetStore(libraryPath).Load().Any(p => p.Name == "My phrase"), "preset deletion persists");
+            library.Close();
+            await libraryTask;
+        }
+        finally { if (File.Exists(libraryPath)) File.Delete(libraryPath); }
+        string beforeGroup = main.Pattern.Text;
+        main.Pattern.Select(0, 6);
+        Click(main, "Group (…)");
+        Check(main.Pattern.Text == "(" + beforeGroup[..6] + ")" + beforeGroup[6..], "main regex group button wraps only the selected text");
+        main.Pattern.Document.UndoStack.Undo();
+        Check(main.Pattern.Text == beforeGroup, "group insertion is one undo step");
         // The session is untouched by modal draft tests, so closing cannot prompt for unsaved work.
         Check(!main.IsDirty, "modal previews do not silently modify the main parser");
     }

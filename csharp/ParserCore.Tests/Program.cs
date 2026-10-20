@@ -873,4 +873,61 @@ Test("Submessage limits: aggregate pattern boundary", () =>
     Check(SubmessageConfiguration.Load(source).Messages.Sum(m => m.Patterns.Count) == 5000);
     Throws<FormatException>(() => SubmessageConfiguration.Load(source + "\nsubmessage[5].pattern.count=1"));
 });
+Test("Regex presets: network defaults and full selection validation", () =>
+{
+    var defaults = RegexPresetStore.Defaults().ToDictionary(p => p.Id);
+    void Accept(string id, string value) => Check(RegexPresetEditing.Replacement(value, 0, value.Length, defaults[id].Pattern).Length > 0);
+    void Reject(string id, string value) => Throws<FormatException>(() => RegexPresetEditing.Replacement(value, 0, value.Length, defaults[id].Pattern));
+    foreach (string value in new[] { "0.0.0.0", "255.255.255.255", "192.0.2.1" })
+        Accept("ipv4", value);
+    foreach (string value in new[] { "256.0.0.1", "01.2.3.4", "1.2.3.4extra" })
+        Reject("ipv4", value);
+    foreach (string value in new[] { "::", "::1", "2001:db8::1", "1:2:3:4:5:6:7:8", "::ffff:192.0.2.1", "1:2:3:4:5:6:192.0.2.1" })
+        Accept("ipv6", value);
+    foreach (string value in new[] { "1::2::3", "1:2:3:4:5:6:7", "1:2:3:4:5:6:7:8:9", "::ffff:999.1.2.3", "[::1]", "fe80::1%eth0" })
+        Reject("ipv6", value);
+    Accept("fqdn", "host.example.com");
+    Accept("fqdn", "xn--bcher-kva.example.");
+    Reject("fqdn", "-host.example");
+    Reject("fqdn", "single");
+    Reject("fqdn", new string('a', 64) + ".example");
+    Accept("mac", "01:ab:CD:23:45:67");
+    Accept("uuid", "12345678-1234-1234-1234-123456789abc");
+});
+Test("Regex presets: persistence, editing, deletion and invalid-file preservation", () =>
+{
+    string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+    try
+    {
+        var store = new RegexPresetStore(path);
+        var items = store.Load();
+        items.Add(new("custom", "Custom", "[A-Z]+", "Letters"));
+        store.Save(items);
+        items = new RegexPresetStore(path).Load();
+        Check(items.Any(p => p.Id == "custom"));
+        items[0] = items[0] with
+        {
+            Name = "Edited"
+        };
+        store.Save(items);
+        Check(new RegexPresetStore(path).Load()[0].Name == "Edited");
+        store.Save([]);
+        Check(new RegexPresetStore(path).Load().Count == 0, "Deleted defaults must not reappear.");
+        string before = File.ReadAllText(path);
+        Throws<ArgumentException>(() => store.Save([new("bad", "Bad", "(", "")]));
+        Check(File.ReadAllText(path) == before, "Invalid edits must not overwrite stored data.");
+        File.WriteAllText(path, "{broken");
+        Throws<System.Text.Json.JsonException>(() => store.Load());
+        Check(File.ReadAllText(path) == "{broken");
+    }
+    finally { if (File.Exists(path)) File.Delete(path); }
+});
+Test("Regex presets: replacement preserves alternative scope and rejects mismatches", () =>
+{
+    Check(RegexPresetEditing.Replacement("prefix=abc end", 7, 3, "abc|def") == "(?:abc|def)");
+    Throws<FormatException>(() => RegexPresetEditing.Replacement("123x", 0, 4, "[0-9]+"));
+    Throws<FormatException>(() => RegexPresetEditing.Replacement("abc", 0, 0, ".*"));
+    Throws<ArgumentException>(() => RegexPresetEditing.Replacement("(", 0, 1, "("));
+    Throws<ArgumentException>(() => RegexPresetEditing.Replacement("(123", 1, 3, "[0-9]+"));
+});
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");

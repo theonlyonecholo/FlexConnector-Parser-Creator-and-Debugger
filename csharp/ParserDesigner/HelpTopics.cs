@@ -6,6 +6,15 @@ internal static class HelpTopics
 {
     public static readonly HelpTopic[] All =
     [
+        new("presets", "Regex preset library and selection groups", """
+The cross-platform main and submessage regex editors share Regex presets. Select literal text in the regex editor, such as 192.0.2.1, then open the library, choose IPv4 and click Check and replace selection.
+The preset must match the entire selection as literal text, not as another regex. A mismatch, invalid expression or timeout leaves the editor unchanged. The resulting full regex must also compile. A single example does not prove that other logs still match.
+New creates a preset. Edit Name, Regex and Description, then Save preset. Delete removes the selected saved preset. Save edits before applying them; closing or choosing another preset discards unsaved form edits.
+The library is stored locally in regex-presets.json under the user's local application-data directory / ArcSightParserDesigner. The exact path is shown in the dialog. It is shared by both editors and persists across restarts and application upgrades. No network service is used.
+Built-ins include IPv4, IPv6, ASCII FQDN labels, colon-separated MAC, unsigned integer and UUID text shape. Read each description for limitations. All can be edited or removed.
+Replacement adds a noncapturing wrapper (?:...) so alternatives stay scoped. Groups inside a custom preset still count. Group (…) wraps the selected regex text in a capturing group; it does not escape it. Review token counts and submessage field order after adding captures. Both edits can be undone with Ctrl+Z.
+This is a .NET preview; validate the parser in the target ArcSight Java runtime before deployment.
+"""),
         new("assistance", "Cross-platform: parser suggestions and regex elements", """
 The Avalonia edition provides Suggest parser: paste 2–200 events, one per line, then Generate and validate. All inference runs locally without uploading logs. Review the .properties proposal and sample coverage before using it. Applying replaces the working draft only after confirmation; Save writes it to disk.
 

@@ -46,7 +46,7 @@ internal sealed class MainWindow : Window
 
     public MainWindow()
     {
-        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.3.5", 1380, 980);
+        Ui.Setup(this, "ArcSight Parser Designer · Cross-platform 2.4.0", 1380, 980);
         MinWidth = 900;
         MinHeight = 800;
         painter = CaptureHighlighter.Attach(Message);
@@ -88,6 +88,8 @@ internal sealed class MainWindow : Window
         Ui.Tip(Message, "Paste a sample log. Captured tokens use distinct colors; selected captures are blue.");
         Ui.Tip(captures, "Match / group / repeated capture / zero-based UTF-16 position / length / value. Click to highlight.");
         var actions = Ui.Bar(Command("Test / Debug · F5", AnalyzeAsync, "Inspect regex elements and captures from the final match; this is not an internal backtracking trace."),
+            Command("Regex presets…", () => RegexEditorActions.PresetsAsync(this, Pattern), "Manage saved regex presets and replace matching selected text."),
+            Command("Group (…)", () => { RegexEditorActions.Group(Pattern); return Task.CompletedTask; }, "Wrap selected regex text in a capturing group. This changes group numbering; review tokens."),
             Ui.Button("◀ Element", () => MoveElement(-1)), Ui.Button("Element ▶", () => MoveElement(1)),
             Ui.Button("Stop", Stop, "Cancel the preview; a running regex is bounded by its timeout."),
             Command("Regex → Configuration", () => { WritePattern(); return Task.CompletedTask; }, "Escape and write the regex property without regenerating tokens."),
@@ -151,7 +153,7 @@ internal sealed class MainWindow : Window
         Closed += (_, _) => { closing = true; debounce.Stop(); previewCancellation?.Cancel(); };
     }
 
-    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.3.5";
+    private void UpdateTitle() => Title = $"ArcSight Parser Designer · {Path.GetFileName(path) ?? "New parser"}{(IsDirty ? " *" : "")} · 2.4.0";
     internal RegexOptions Options => (ignoreCase.IsChecked == true ? RegexOptions.IgnoreCase : RegexOptions.None)
         | (multiline.IsChecked == true ? RegexOptions.Multiline : RegexOptions.None)
         | (singleline.IsChecked == true ? RegexOptions.Singleline : RegexOptions.None);
