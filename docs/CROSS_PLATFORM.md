@@ -1,8 +1,18 @@
-# Cross-platform desktop edition — 2.3.2
+# Cross-platform desktop edition — 2.3.5
 
 This edition uses C# / .NET 10, Avalonia 12.1.4 and AvaloniaEdit 12.0.0.
 It is a native desktop application, not a website or a Wine wrapper. The existing
 WinForms edition remains available in its separate Windows solution.
+
+The log workbench colors the selected event by result: green for passed regex
+stages, red for failed-stage input or an unresolved message-ID token, and orange
+for estimated partial prefixes or evaluation errors. Capture selection is blue.
+Red does not identify a proven first failing character. For multiple failed
+submessage patterns, partial highlighting previews the first attempted pattern;
+use Edit submessage to inspect other alternatives. Prefix-debug offsets are
+relative to the tested input (the body token for submessages). Empty inputs and
+missing suffixes are explained in text. These colors do not validate ArcSight
+token conversions, transformations or extra processors.
 
 ## Ready-to-run packages
 
@@ -84,7 +94,7 @@ The release was checked on Windows and Ubuntu 26.04 LTS x64 under WSLg.
 Tests exercise real native controls: group highlighting, 100-step undo/redo,
 searchable help, token snippets/formats, mapping/severity export, submessage
 editing, batch routing, filters, selection retention and stale progress handling.
-The 78 core regressions cover parser semantics, file round trips, parser suggestions and regex-element instrumentation. See [Parser assistance](PARSER_ASSISTANCE.md) for the new workflows.
+The 82 core regressions cover parser semantics, file round trips, parser suggestions and regex-element instrumentation. See [Parser assistance](PARSER_ASSISTANCE.md) for the new workflows.
 Native file pickers use each operating system's desktop integration; picker clicks
 are not automated by the regression executable.
 

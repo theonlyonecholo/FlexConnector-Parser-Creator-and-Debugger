@@ -33,7 +33,7 @@ internal sealed class SubmessagesDialog : Window
     private readonly ListBox captures = new(), elements = new();
     private readonly TextBlock selectionTitle = Ui.Label("Select a pattern", 16), previewStatus = Ui.Label("Test the draft to inspect this pattern.");
     private readonly TextBlock routeStatus = Ui.Label("Actual route: not tested");
-    private readonly CheckBox automatic = new() { Content = "Automatic preview" };
+    private readonly CheckBox automatic = new() { Content = "Automatic preview", IsChecked = true };
     private readonly DispatcherTimer debounce = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private readonly TabControl previewTabs;
     private DebugResult? captureResult;
@@ -74,22 +74,23 @@ internal sealed class SubmessagesDialog : Window
             IsChecked = model.Trim
         };
         Ui.Tip(trim, "Trim spaces/tabs around the body before matching.");
-        messageId = Ui.Input("", "Exact message ID handled by this definition, such as LOGIN.");
+        messageId = Ui.Input("", "Exact, case-sensitive value of the Message ID token, such as LOGIN. This is not a display name. For regex-only selection use a default definition with multiple patterns.");
         fallback = new()
         {
             Content = "Default for unknown IDs"
         };
-        Ui.Tip(fallback, "Only unknown IDs use this definition. A known ID with mismatching patterns does not fall back.");
+        Ui.Tip(fallback, "Omit this definition's messageid property. For an unknown ID (or no ID token), try its patterns in order until the first match. A known ID with mismatching patterns does not fall back. An empty messageid property is not the same as omitting it.");
+        Ui.Tip(automatic, "Refresh routing and highlights after a typing pause, just like the main window. Turn off to test manually with F5.");
         originalLog = Ui.Editor(log);
         sample = Ui.Editor(readOnly: true);
         painter = CaptureHighlighter.Attach(sample);
-        Ui.Tip(sample, "Raw value of submessage.token extracted by the main regex. All highlights use token-relative positions. Edit the Original log tab, then press F5 to extract it again.");
-        Ui.Tip(originalLog, "Full event used by the main parser to extract the body and message ID tokens. Press F5 after editing.");
+        Ui.Tip(sample, "Raw value of submessage.token extracted by the main regex. Highlights use token-relative positions and refresh automatically while Automatic preview is enabled.");
+        Ui.Tip(originalLog, "Full event used by the main parser to extract the body and message ID tokens. Editing refreshes the extracted input and preview.");
         var mappings = new StackPanel { Spacing = 8 };
         var advanced = new StackPanel { Spacing = 8 };
         var hints = new Dictionary<string, string>
         {
-            ["regex"] = "Decoded regex for the entire body. Click a group after testing to highlight its field.",
+            ["regex"] = "Decoded regex for the entire body. Highlights refresh after a typing pause. Click a group to locate its captured text.",
             ["fields"] = "Comma-separated event fields in group order. $1 is the first submessage group.",
             ["types"] = "Comma-separated ArcSight types in field order. Not converted locally.",
             ["formats"] = "Formats in field order. null means no format. Not evaluated locally.",
@@ -153,7 +154,7 @@ internal sealed class SubmessagesDialog : Window
             controls, Ui.Stack(routeStatus, previewStatus), previewTabs);
         var navigation = Ui.Rows("Auto,Auto,Auto,Auto,*", Ui.Label("Definitions & pattern order", 16),
             tools, Ui.Stack(Ui.Label("Message ID"), messageId, fallback),
-            Ui.Label("Select a pattern below to edit it. The first matching pattern wins."), nodes);
+            Ui.Label("Select a pattern below to edit it. The first matching pattern wins.\nDefault = no messageid property; tries its patterns for unknown IDs.\nApp limits: 1,000 definitions; 1,000 patterns per definition; 5,000 patterns total."), nodes);
         Content = new Border
         {
             Padding = new Thickness(16),
@@ -198,7 +199,7 @@ internal sealed class SubmessagesDialog : Window
         painter.Paint(sample, []);
         // Pattern edits invalidate highlights, not the independently extracted main token.
         sample.Select(0, 0);
-        previewStatus.Text = "Draft changed. Press F5 to refresh routing and highlights.";
+        previewStatus.Text = automatic.IsChecked == true ? "Draft changed. Updating routing and highlights…" : "Draft changed. Press F5 to refresh routing and highlights.";
         result.Text = "Draft changed. Test again to refresh the route and field highlights.";
         routeStatus.Text = "Actual route: preview out of date";
         if (!closed && automatic.IsChecked == true)
@@ -386,6 +387,10 @@ internal sealed class SubmessagesDialog : Window
         elements.ItemsSource = elementResults.Select(e => $"[{e.Start}..{e.Start + e.Length}) {e.Expression} → "
             + (e.Captures.Count == 0 ? "no final capture" : string.Join(", ", e.Captures.Take(10).Select(c => $"text[{c.Index}..{c.Index + c.Length})")))).ToArray();
         Paint();
+        // Editing can leave the caret inside a group without another caret event.
+        // Restore its visual association after the asynchronous preview completes.
+        if (fields["regex"].IsKeyboardFocusWithin)
+            HighlightGroup();
     }
     private void HighlightGroup()
     {

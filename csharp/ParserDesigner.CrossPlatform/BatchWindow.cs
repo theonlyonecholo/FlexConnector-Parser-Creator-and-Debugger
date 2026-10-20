@@ -27,7 +27,7 @@ internal sealed class BatchWindow : Window
     private CancellationTokenSource? runCancellation, detailCancellation;
     private int runVersion, detailVersion;
     private bool closed, refreshing;
-    private ParserResult? selectedDetail;
+    private BatchHighlighting? selectedHighlighting;
     public string ConfigurationSource
     {
         get; private set;
@@ -51,7 +51,7 @@ internal sealed class BatchWindow : Window
         {
             Padding = new Thickness(18),
             Child = Ui.Rows("Auto,Auto,*,Auto", tools, summary,
-            Ui.Columns("*,*", list, Ui.Rows("Auto,2*,*,*", Ui.Label("LOG DETAIL · token and field colors"), message, captures, description)),
+            Ui.Columns("*,*", list, Ui.Rows("Auto,2*,*,*", Ui.Label("LOG DETAIL · Green: passed · Red: failed stage / route · Orange: partial / uncertain\nSelect a capture to highlight it in blue."), message, captures, description)),
             Ui.Label("Edits return to the main configuration when this window closes. Use Save there to write to disk."))
         };
         filter.SelectionChanged += (_, _) => Refresh();
@@ -64,7 +64,7 @@ internal sealed class BatchWindow : Window
     {
         ParseState.Matched => "Match",
         ParseState.MainMismatch => "Main regex mismatch",
-        ParseState.NoSubmessage => "Missing submessage",
+        ParseState.NoSubmessage => "No matching message ID / default",
         ParseState.SubmessageMismatch => "Submessage mismatch",
         ParseState.Error => "Error / timeout",
         _ => "Untested"
@@ -173,7 +173,7 @@ internal sealed class BatchWindow : Window
         detailCancellation = new();
         int version = ++detailVersion;
         var cancellation = detailCancellation.Token;
-        selectedDetail = null;
+        selectedHighlighting = null;
         captures.ItemsSource = null;
         painter.Paint(message, []);
         if (list.SelectedItem is not LogRow row)
@@ -185,20 +185,23 @@ internal sealed class BatchWindow : Window
         message.Text = row.Text;
         description.Text = "Evaluating selected log…";
         var snapshot = evaluator;
+        string source = ConfigurationSource;
         try
         {
             await detailWorker.WaitAsync(cancellation);
             ParserResult detail;
+            BatchHighlighting highlighting;
             try
             {
                 detail = await Task.Run(() => snapshot.Evaluate(row.Text, true, cancellation), cancellation);
+                highlighting = await Task.Run(() => BatchHighlighting.Analyze(source, row.Text, detail, cancellation), cancellation);
             }
             finally { detailWorker.Release(); }
             if (closed || version != detailVersion || cancellation.IsCancellationRequested)
                 return;
-            selectedDetail = detail;
+            selectedHighlighting = highlighting;
             captures.ItemsSource = detail.Captures.Select(c => new CaptureItem(c)).ToArray();
-            description.Text = $"Line {row.Line} · {State(detail)}\n{detail.Description}\nMessage ID: {detail.MessageId}\nRoute: {detail.Route}\n" +
+            description.Text = $"Line {row.Line} · {State(detail)}\n{highlighting.Explanation}\n{detail.Description}\nMessage ID: {detail.MessageId}\nRoute: {detail.Route}\n" +
                 string.Join("\n", detail.Attempts.Select(a => $"submessage[{a.Submessage}].pattern[{a.Pattern}]: {(a.Matched ? "MATCH" : "mismatch")}")) +
                 "\nFields are capture labels. ArcSight transformations and extra processors are not executed.";
             Paint();
@@ -207,7 +210,10 @@ internal sealed class BatchWindow : Window
     }
     private void Paint(ParserCapture? selected = null)
     {
-        painter.Paint(message, selectedDetail?.Captures.Select((c, i) => new Highlight(c.Index, c.Length, c.Name == "Entire match" ? 4 : i, c == selected)) ?? []);
+        IEnumerable<Highlight> spans = selectedHighlighting?.Spans ?? [];
+        if (selected is not null)
+            spans = spans.Append(new(selected.Index, selected.Length, 0, Selected: true));
+        painter.Paint(message, spans);
         if (selected is not null)
         {
             message.Select(selected.Index, selected.Length);

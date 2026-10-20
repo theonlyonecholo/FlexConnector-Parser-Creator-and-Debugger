@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.5 — 2026-10-20
+
+- Enable automatic submessage previews by default, including regex edits and pattern switching, and restore caret-to-capture highlighting after asynchronous refresh.
+- Document default definitions with ordered pattern alternatives and verify first-match, no-match and known-ID behavior.
+- Expose local submessage limits and enforce the per-definition pattern limit when exporting unfinished drafts as well as validated configurations.
+
+## 2.3.4 — 2026-10-20
+
+- Color selected log details by parser stage: green for matched extraction, red for a failed stage or unresolved routing token, and orange for partial or uncertain results.
+- Explain partial-prefix estimates, missing suffixes and empty inputs without claiming an exact regex failure location.
+- Keep capture selection in blue and compute partial previews only for the selected log, with cancellation on navigation.
+
+## 2.3.3 — 2026-10-19
+
+- Explain missing submessage routes in log-file details: routing token, captured ID, configured exact IDs, and why no pattern was tested.
+- Clarify that message IDs are exact values rather than display labels.
+- Add a Windows NetFt example with one default submessage and four regex alternatives, plus tab-delimited sample logs and routing regression coverage.
+
 ## 2.3.2 — 2026-10-19
 
 - Keep the extracted body visible while editing or switching submessage patterns.

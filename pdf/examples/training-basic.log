@@ -1,0 +1,2 @@
+2026-10-19 10:02:15 level=WARN user=alice src=192.0.2.10 action=LOGIN
+2026-10-19 10:03:00 level=INFO user=bob src=192.0.2.11 action=LOGOUT

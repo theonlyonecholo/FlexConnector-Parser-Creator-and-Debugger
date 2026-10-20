@@ -190,6 +190,9 @@ Message ID token: the token selecting a definition, submessage.messageid.token.
 Trim submessage: remove leading and trailing spaces/tabs before testing the body.
 Message ID: the exact value this definition handles.
 Default for unknown IDs: a definition without a messageid property. Used for undefined IDs, not when all patterns for a known ID fail.
+The default can contain several patterns, tried in order until the first match. Select Default for unknown IDs to omit messageid; an explicitly empty messageid property is different.
+Automatic preview is enabled by default in the cross-platform workbench. Regex edits and pattern selection refresh highlights after a short pause; turn it off to test manually with F5.
+Application limits: 1,000 submessages (indices 0–999), 1,000 patterns per submessage and 5,000 patterns total. These are local application limits.
 regex: decoded pattern for the entire submessage body.
 fields: comma-separated target event fields in capturing group order.
 types: explicit types in the same order; otherwise the connector may infer types from target fields.
@@ -213,7 +216,7 @@ Workflow
 1. Select an encoding and Open logs. UTF-8 recognizes a BOM; use Latin-1 only for files in that encoding.
 2. Testing runs in the background. Test all repeats it; Stop leaves remaining rows untested.
 3. Select a log or use the arrows. Filter the list to matches, problems or untested entries.
-4. Details show the original text, colored tokens/fields, message ID and selected submessage[n].pattern[m]. The attempt list shows which patterns failed.
+4. Details show the original text, result colors, message ID and selected submessage[n].pattern[m]. The attempt list shows which patterns failed. Select a token/field to highlight its capture in blue.
 5. Edit submessage opens the selected or first attempted pattern. Add a variant for a different log. Edit parser opens the entire configuration. Applying changes automatically retests the file.
 6. Changes return to the main configuration when you close the window. Use Save to write them to disk.
 
@@ -227,6 +230,13 @@ Not tested: the record has not yet been evaluated.
 
 After a fix, check previously successful logs too. A broader pattern can change the selected variant. The selected line is retained if it remains in the active filter.
 Testing uses the configuration, including trim.message and trim.submessage, rather than the main debugger's experimental switches.
+
+Result colors
+Green: the regex stage passed. When a submessage fails, the main extraction can still be green.
+Red: input of a failed stage, or the ID token with no route. This is not a guaranteed exact error location.
+Orange: an estimated matching prefix or an uncertain error/timeout. A partial prefix does not count as a successful parse.
+For multiple failed submessage patterns, the partial preview uses the first attempted pattern, named in the details. Edit submessage to inspect other variants.
+Missing text at the end and empty tokens have no character to color; read the diagnostic. Token conversions, transformations and extra processors are not executed.
 """),
         new("severity", "Severity: normalize device severity", """
 Devices may report different severity scales or only a status code. event.deviceSeverity carries the original value; severity.map.* maps it to low, medium, high or veryhigh.

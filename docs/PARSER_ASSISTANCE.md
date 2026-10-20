@@ -54,7 +54,13 @@ The cross-platform Avalonia window uses the same implementation on Windows, Linu
 
 The left pane contains definitions, ordered patterns and the selected message ID/default setting. The right pane keeps the extracted value of submessage.token and selected regex visible. The read-only token view shows the full raw value; the Original log tab holds the editable full event. Changing the original log or body-token dropdown automatically re-extracts it; F5 also refreshes the preview. If extraction fails, the view clears and reports the missing token. Captures, Regex elements, Fields / types, Advanced mappings and Route / diagnostics have separate tabs. Long regexes wrap and the inputs retain their existing 100-step undo support.
 
-Press F5 or Test log with these changes to test the draft. Automatic preview is optional and refreshes after a typing pause. Edits and node switches cancel stale work and clear previous highlights while retaining the extracted body; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
+Automatic preview is enabled by default, as in the main window, and refreshes after a 350 ms typing pause or pattern selection. Turn it off for manual testing with F5 or Test log with these changes. Edits and node switches cancel stale work and clear previous highlights while retaining the extracted body; invalid regexes are reported inside the window. Applying still validates and exports the entire submessage configuration.
+
+Application limits are 1,000 submessage definitions (indices 0–999), 1,000 patterns per definition (indices 0–999), and 5,000 patterns in total. These are local preview limits, not a claim about the ArcSight engine's maximum.
+
+Enable **Default for unknown IDs** to omit a definition's `messageid` property. Its patterns are tried in order until the first match for an ID without its own definition, or when no ID token is configured. If no pattern matches, testing reports a submessage mismatch. A known ID whose patterns fail does not switch to this default. Leaving an explicit `messageid=` property empty is different from removing it. This behavior was already supported; it is now covered by explicit ordered-alternative regressions.
+
+Source checked on 2026-10-20: [OpenText/Micro Focus, Using Sub-Messages for Multiple File Formats](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.4/flexconn_devguide/Content/convertFlex/Sub_Messages.htm), sections on ordered patterns and Default Sub-message.
 
 The persistent Actual route label identifies the winning definition/pattern. Independently, the selected pattern is evaluated against the complete captured body token, even if routing selected another pattern or ID. A notice explicitly says when the selected pattern was NOT used by routing. This lets you tune later alternatives without reordering or changing production routing.
 

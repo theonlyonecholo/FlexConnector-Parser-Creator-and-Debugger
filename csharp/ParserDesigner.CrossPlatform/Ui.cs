@@ -154,7 +154,7 @@ internal static class Ui
     }
 }
 
-internal sealed record Highlight(int Index, int Length, int Color, bool Selected = false);
+internal sealed record Highlight(int Index, int Length, int Color, bool Selected = false, string? Background = null);
 
 /// <summary>Paints capture backgrounds without modifying text or undo history. Offsets are UTF-16.</summary>
 internal sealed class CaptureHighlighter : DocumentColorizingTransformer
@@ -167,7 +167,7 @@ internal sealed class CaptureHighlighter : DocumentColorizingTransformer
         {
             int start = Math.Max(line.Offset, span.Index), end = Math.Min(line.EndOffset, span.Index + span.Length);
             if (start < end)
-                ChangeLinePart(start, end, element => element.TextRunProperties.SetBackgroundBrush(span.Selected ? Brush.Parse("#82b1ff") : Palette[Math.Abs(span.Color) % Palette.Length]));
+                ChangeLinePart(start, end, element => element.TextRunProperties.SetBackgroundBrush(span.Selected ? Brush.Parse("#82b1ff") : span.Background is { } background ? Brush.Parse(background) : Palette[Math.Abs(span.Color) % Palette.Length]));
         }
     }
     public static CaptureHighlighter Attach(TextEditor editor)

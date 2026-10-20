@@ -158,7 +158,22 @@ public sealed class ParserEvaluator
             if (fallback)
                 candidates = submessages.Where(s => s.Id is null).ToArray();
             if (candidates.Length == 0)
-                return Result(ParseState.NoSubmessage, "No submessage or default is available for this message ID.");
+            {
+                string explanation = "No submessage or default is available for this message ID.";
+                if (details)
+                {
+                    static string Preview(string value) => value[..Math.Min(300, value.Length)]
+                        .Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t") + (value.Length > 300 ? "…" : "");
+                    explanation += $"\nRouting token: {document.Get("submessage.messageid.token")}\nCaptured ID: [{Preview(id)}]"
+                        + "\nConfigured IDs (exact, case-sensitive values; not display names):\n"
+                        + string.Join("\n", submessages.Take(20).Select(s => $"submessage[{s.Index}].messageid=[{Preview(s.Id ?? "")}]"))
+                        + (submessages.Count > 20 ? "\nAdditional IDs omitted." : "")
+                        + "\nNo pattern regex was tested because no ID matched and no default definition exists."
+                        + "\nFor regex-only selection, use a default definition (omit its messageid) with multiple ordered patterns."
+                        + " For ID routing, select a stable token and use its exact values as messageid.";
+                }
+                return Result(ParseState.NoSubmessage, explanation);
+            }
             route = string.Join(", ", candidates.Select(s => $"submessage[{s.Index}]")) + (fallback ? " (default)" : "");
             var subtext = TrimInput(body.Value, Flag("trim.submessage"));
             int baseOffset = text.Offset + body.Index + subtext.Offset;
@@ -189,7 +204,9 @@ public sealed class ParserEvaluator
                     }
                     return Result(ParseState.Matched, "Both the main regex and submessage match. The first matching pattern was selected.");
                 }
-            return Result(ParseState.SubmessageMismatch, "The submessage exists, but none of its patterns match. The default is not used for a known ID.");
+            return Result(ParseState.SubmessageMismatch, fallback
+                ? "The default submessage was selected, but none of its patterns match the body."
+                : "The submessage exists, but none of its patterns match. The default is not used for a known ID.");
         }
         catch (RegexMatchTimeoutException) { return Result(ParseState.Error, "The regex timed out."); }
     }

@@ -68,7 +68,7 @@ public sealed class SubmessageConfiguration
 
     public string Apply(string source, bool validate = true)
     {
-        if (Messages.Count > 1000 || Messages.Sum(m => m.Patterns.Count) > 5000)
+        if (Messages.Count > 1000 || Messages.Any(m => m.Patterns.Count > 1000) || Messages.Sum(m => m.Patterns.Count) > 5000)
             throw new FormatException("The submessage/pattern count limit was exceeded.");
         var doc = new PropertiesDocument(source);
         var retained = new HashSet<string>(StringComparer.Ordinal);

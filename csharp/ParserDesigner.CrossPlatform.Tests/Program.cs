@@ -197,6 +197,20 @@ internal static class Checks
             Field<ComboBox>(sub, "idToken").Items.Cast<string>().Contains("MessageID"), "token dropdowns list declared main tokens");
         Check(Field<TextEditor>(sub, "result").Text.Contains("submessage[0].pattern[0]", StringComparison.Ordinal), "submessage test reports selected route");
         var fields = Field<Dictionary<string, TextEditor>>(sub, "fields");
+        Check(Field<CheckBox>(sub, "automatic").IsChecked == true, "submessage live preview is enabled by default");
+        fields["regex"].Text += "(?:)";
+        await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
+        Check(Field<TextEditor>(sub, "result").Text.Contains("ACTUAL ROUTE:"), "typing refreshes submessage highlights without pressing Test");
+        fields["regex"].Document.UndoStack.Undo();
+        await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
+        var subNodes = Field<ListBox>(sub, "nodes");
+        subNodes.SelectedIndex = 2;
+        await Until(() => Field<TextEditor>(sub, "result").Text.Contains("SELECTED PATTERN:") &&
+            Field<TextEditor>(sub, "result").Text.Contains("NOT used"));
+        subNodes.SelectedIndex = 1;
+        await Until(() => Field<CaptureHighlighter>(sub, "painter").Spans.Count > 0);
+        Check(Field<TextEditor>(sub, "result").Text.Contains("active route"), "switching patterns refreshes the selected preview automatically");
+        Field<CheckBox>(sub, "automatic").IsChecked = false;
         fields["regex"].CaretOffset = fields["regex"].Text.IndexOf('(') + 1;
         Check(Field<CaptureHighlighter>(sub, "painter").Spans.Any(s => s.Selected), "submessage group navigation highlights the body token");
         Click(sub, "Element ▶");
@@ -260,6 +274,10 @@ internal static class Checks
         var list = Field<ListBox>(batch, "list");
         list.SelectedIndex = 3;
         await Until(() => Field<TextEditor>(batch, "description").Text.Contains("Submessage mismatch", StringComparison.Ordinal));
+        Check(Field<CaptureHighlighter>(batch, "painter").Spans.Any(s => s.Background == BatchHighlighting.Passed) &&
+            Field<CaptureHighlighter>(batch, "painter").Spans.Any(s => s.Background == BatchHighlighting.Failed),
+            "failed submessage retains green main extraction and marks the failed body red");
+        await Capture(batch, "batch-failed");
         await batch.ApplyAsync(updated);
         Check(Field<ParserResult?[]>(batch, "results").Count(r => r?.Success == true) == 5, "editing parser retests the entire file");
         Check(list.SelectedIndex == 3, "batch retest retains the selected log");
@@ -268,8 +286,48 @@ internal static class Checks
         Field<ComboBox>(batch, "filter").SelectedIndex = 0;
         list.SelectedIndex = 0;
         await Until(() => Field<TextEditor>(batch, "description").Text.Contains("Line 1", StringComparison.Ordinal));
+        Check(Field<CaptureHighlighter>(batch, "painter").Spans.All(s => s.Background == BatchHighlighting.Passed),
+            "successful log uses green status highlighting");
+        Field<ListBox>(batch, "captures").SelectedIndex = 1;
+        Check(Field<CaptureHighlighter>(batch, "painter").Spans.Any(s => s.Selected),
+            "capture selection overlays status highlighting");
+        Field<ListBox>(batch, "captures").SelectedIndex = -1;
         Check(!Field<TextBlock>(batch, "summary").Text!.StartsWith("Testing", StringComparison.Ordinal), "queued progress cannot overwrite completed batch totals");
         await Capture(batch, "batch");
+        var noRoute = new PropertiesDocument(source);
+        noRoute.Set("submessage.messageid.token", "Body");
+        noRoute.Set("submessage[2].messageid", "STATUS");
+        await batch.ApplyAsync(noRoute.Source);
+        await Until(() => Field<TextEditor>(batch, "description").Text.Contains("No pattern regex was tested", StringComparison.Ordinal));
+        Check(Field<TextEditor>(batch, "description").Text.Contains("Routing token: Body", StringComparison.Ordinal),
+            "batch detail explains exact-ID routing failures before regex matching");
+        var routeSpan = Field<CaptureHighlighter>(batch, "painter").Spans.Last();
+        Check(routeSpan.Background == BatchHighlighting.Failed && logs[0].Text.Substring(routeSpan.Index, routeSpan.Length).StartsWith("user="),
+            "routing failure colors the configured message ID token");
+        await Capture(batch, "batch-routing");
+        var partialDoc = new PropertiesDocument("");
+        partialDoc.Set("regex", @"abc=(\d+) END");
+        partialDoc.Set("token.count", "1");
+        partialDoc.Set("token[0].name", "Number");
+        partialDoc.Set("token[0].type", "String");
+        string partialSource = partialDoc.Source;
+        foreach (string text in new[] { "abc=123 WRONG", "abc=123", "" })
+        {
+            var result = new ParserEvaluator(partialSource).Evaluate(text);
+            var colors = BatchHighlighting.Analyze(partialSource, text, result, default);
+            Check(!result.Success && !colors.Spans.Any(s => s.Background == BatchHighlighting.Passed),
+                "partial or empty main input is never reported as green");
+            if (text.Length > 0)
+                Check(colors.Spans.Any(s => s.Background == BatchHighlighting.Partial), "partial prefix is orange");
+            if (text == "abc=123")
+                Check(colors.Explanation.Contains("required text may be missing"), "missing suffix is explained without inventing a failing character");
+            if (text.Length == 0)
+                Check(colors.Explanation.Contains("input is empty"), "empty failed input has a textual diagnostic");
+        }
+        await batch.ApplyAsync(partialSource);
+        await batch.LoadLogsAsync([new LogEntry(1, "abc=123 WRONG")]);
+        await Until(() => Field<TextEditor>(batch, "description").Text.Contains("estimated matching prefix"));
+        await Capture(batch, "batch-partial");
         batch.Close();
         await batchTask;
 

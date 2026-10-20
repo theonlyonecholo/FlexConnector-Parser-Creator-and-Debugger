@@ -184,7 +184,8 @@ Test("Repository examples: parsing, severity, file round trip", () =>
     foreach (string file in Directory.GetFiles(examples, "*.properties"))
     {
         var d = PropertiesDocument.Load(file);
-        string logFile = file.Contains("submessages") ? "submessages.log" : file.Contains("severity-processors") ? "severity-processors.log" : "demo.log";
+        string pairedLog = Path.GetFileName(file).Replace(".sdkrfilereader.properties", ".log", StringComparison.Ordinal);
+        string logFile = File.Exists(Path.Combine(examples, pairedLog)) ? pairedLog : "demo.log";
         string log = File.ReadLines(Path.Combine(examples, logFile)).First();
         var r = RegexDebugger.Analyze(d.Get("regex"), log, fullEvent: true);
         Check(r.Error is null && r.Matches.Count == 1, file);
@@ -799,5 +800,77 @@ Test("Submessage input: pasted EM SPACE separators explain missing TAB matches",
     Check(pasted.BodyText is null && pasted.Status.Contains("EM SPACE (U+2003)"));
     Check(SubmessageDebugger.Analyze(doc.Source, "header\tbody", 0, 0).BodyText == "body");
     Check(SubmessageDebugger.Analyze(doc.Source, "header\t", 0, 0).BodyText == "");
+});
+Test("Windows NetFt: regex alternatives select DROP, validation, N/A and status", () =>
+{
+    string path = Path.Combine(AppContext.BaseDirectory, "examples", "windows-netft-pattern-routing");
+    var doc = PropertiesDocument.Load(path + ".sdkrfilereader.properties");
+    var logs = File.ReadAllLines(path + ".log");
+    var parser = new ParserEvaluator(doc.Source);
+    for (int i = 0; i < logs.Length; i++)
+    {
+        var result = parser.Evaluate(logs[i]);
+        Check(result.Success && result.UsedSubmessage == 0 && result.UsedPattern == i);
+    }
+    var drop = parser.Evaluate(logs[0]);
+    Check(drop.Captures.Single(c => c.Stage == "Token" && c.Name == "Something").Value == "");
+    Check(drop.Captures.Single(c => c.Stage == "Submessage" && c.Name == "event.sourceAddress").Value == "10.10.10.10");
+    Check(drop.Captures.Single(c => c.Stage == "Submessage" && c.Name == "event.sourcePort").Value == "3333");
+    doc.Set("submessage.messageid.token", "Message");
+    doc.Set("submessage[0].messageid", "Var1");
+    var blocked = new ParserEvaluator(doc.Source).Evaluate(logs[0]);
+    Check(blocked.State == ParseState.NoSubmessage && blocked.Attempts.Count == 0);
+    Check(blocked.Description.Contains("Routing token: Message") && blocked.Description.Contains("[DROP]")
+        && blocked.Description.Contains("Var1") && blocked.Description.Contains("No pattern regex was tested"));
+    doc.Set("submessage.messageid.token", "Info");
+    doc.Set("submessage[0].messageid", "NetftTraceMessage");
+    Check(new ParserEvaluator(doc.Source).Evaluate(logs[0]).State == ParseState.NoSubmessage);
+    doc.Set("submessage[0].messageid", "Netft Trace Message");
+    Check(new ParserEvaluator(doc.Source).Evaluate(logs[0]).Success);
+});
+Test("Default submessage: ordered alternatives, first winner and complete failure", () =>
+{
+    var doc = new PropertiesDocument(SubSource());
+    doc.Set("submessage[1].pattern.count", "3");
+    doc.Set("submessage[1].pattern[0].regex", "first");
+    doc.Set("submessage[1].pattern[1].regex", "second");
+    doc.Set("submessage[1].pattern[2].regex", "second");
+    var parser = new ParserEvaluator(doc.Source);
+    var match = parser.Evaluate("id=UNKNOWN body=second");
+    Check(match.Success && match.UsedSubmessage == 1 && match.UsedPattern == 1 && match.Attempts.Count == 2);
+    var failure = parser.Evaluate("id=UNKNOWN body=other");
+    Check(failure.State == ParseState.SubmessageMismatch && failure.Attempts.Count == 3 &&
+        failure.Description.Contains("default submessage was selected"));
+    Check(parser.Evaluate("id=A body=second").State == ParseState.SubmessageMismatch);
+    doc.Set("submessage[0].messageid", null);
+    doc.Set("submessage.messageid.token", null);
+    Check(new ParserEvaluator(doc.Source).Evaluate("id=ANY body=second").UsedPattern == 1);
+    doc.Set("submessage[1].messageid", "");
+    doc.Set("submessage.messageid.token", "ID");
+    Check(new ParserEvaluator(doc.Source).Evaluate("id=UNKNOWN body=second").State == ParseState.SubmessageMismatch,
+        "An explicitly empty ID must not become a default definition.");
+});
+Test("Submessage limits: definition and per-definition pattern boundaries", () =>
+{
+    Check(SubmessageConfiguration.Load("submessage.count=1000").Messages.Count == 1000);
+    Throws<FormatException>(() => SubmessageConfiguration.Load("submessage.count=1001"));
+    Check(SubmessageConfiguration.Load("submessage.count=1\nsubmessage[0].pattern.count=1000").Messages[0].Patterns.Count == 1000);
+    Throws<FormatException>(() => SubmessageConfiguration.Load("submessage.count=1\nsubmessage[0].pattern.count=1001"));
+    var model = SubmessageConfiguration.Load(SubSource());
+    while (model.Messages[0].Patterns.Count < 1001)
+        model.Messages[0].Patterns.Add(SubmessageConfiguration.NewPattern());
+    Throws<FormatException>(() => model.Apply(SubSource(), validate: false));
+    var doc = new PropertiesDocument(SubSource());
+    doc.Set("submessage.count", "1001");
+    Throws<FormatException>(() => new ParserEvaluator(doc.Source));
+    doc.Set("submessage.count", "1");
+    doc.Set("submessage[0].pattern.count", "1001");
+    Throws<FormatException>(() => new ParserEvaluator(doc.Source));
+});
+Test("Submessage limits: aggregate pattern boundary", () =>
+{
+    string source = "submessage.count=6\n" + string.Join("\n", Enumerable.Range(0, 5).Select(i => $"submessage[{i}].pattern.count=1000"));
+    Check(SubmessageConfiguration.Load(source).Messages.Sum(m => m.Patterns.Count) == 5000);
+    Throws<FormatException>(() => SubmessageConfiguration.Load(source + "\nsubmessage[5].pattern.count=1"));
 });
 Console.WriteLine($"{passed} tests passed; exit code {Environment.ExitCode}.");
